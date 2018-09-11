@@ -1,0 +1,17 @@
+
+If you put grammar clauses which match something or nothing at the beginning of a rule, e.g.: 
+
+ws = ([ ]+ | Nothing);
+assignment = ws [a-z]+ ws '=' ws [0-9+];
+
+Then given a string like
+
+"  x = 5;"
+
+will have a match at position 0, and then again at the 'x'. This is inefficient, because it doubles the number of memo entries per assignment.
+
+=> solution: put optional whitespace consuming matches at the end of the rule 
+
+...and actually that makes a lot of sense, since PEG parsing is about greedily consuming input from a fixed start position.
+
+In fact any rule (X | Nothing) will always match in every position -- the question is just how much input is matched.

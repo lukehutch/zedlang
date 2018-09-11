@@ -1,0 +1,7 @@
+
+-- Add backlink from clauses to parent clauses that have them as the first subclause
+
+-- Add non-first-clause backlinks
+
+-- Add flag in Memo that specifies whether the memo was preceded by a memo of the same clause type
+   -- Make OneOrMore look at this flag, and add OneOrMoreSuffix rule type that ignores the flag 
