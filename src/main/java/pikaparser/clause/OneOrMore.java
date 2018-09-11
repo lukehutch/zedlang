@@ -51,6 +51,11 @@ public class OneOrMore extends Clause {
     }
 
     @Override
+    protected int minMatchLen() {
+        return subClauses[0].minMatchLen();
+    }
+
+    @Override
     public String toStr() {
         return subClauses[0] + "+";
     }

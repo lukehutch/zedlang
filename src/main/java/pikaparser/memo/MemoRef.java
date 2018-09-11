@@ -30,6 +30,6 @@ public class MemoRef {
 
     @Override
     public String toString() {
-        return clause + " : " + startPos;
+        return clause.toStringWithRuleNames() + " : " + startPos;
     }
 }

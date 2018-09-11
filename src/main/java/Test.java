@@ -1,16 +1,18 @@
+import java.io.IOException;
 import java.util.Arrays;
 
-import pikaparser.Parser;
 import pikaparser.clause.CharSet;
 import pikaparser.clause.FirstMatch;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.OneOrMore;
 import pikaparser.clause.RuleName;
 import pikaparser.clause.Seq;
+import pikaparser.parser.MetaGrammar;
+import pikaparser.parser.Parser;
 
 public class Test {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         var grammar = Arrays.asList(new OneOrMore(new RuleName("stmt")).addRuleName("prog"), //
                 new FirstMatch(new OneOrMore(new CharSet(' ')), new Nothing()).addRuleName("ws"), //
                 new OneOrMore(new CharSet('a', 'z')).addRuleName("letter"), //
@@ -29,6 +31,15 @@ public class Test {
         System.out.println();
 
         parser.printParseResult();
+
+        //        String grammarStr;
+        //        try (var stream = Test.class.getClassLoader().getResource("testGrammar").openStream()) {
+        //            grammarStr = new String(stream.readAllBytes());
+        //        }
+        //        parser = MetaGrammar.newParser(grammarStr);
+        //
+        //        parser.printParseResult();
+
     }
 
 }

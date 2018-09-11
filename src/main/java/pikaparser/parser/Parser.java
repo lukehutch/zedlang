@@ -1,15 +1,15 @@
-package pikaparser;
+package pikaparser.parser;
 
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.RuleName;
@@ -52,32 +52,12 @@ public class Parser {
         return clause;
     }
 
-    private static void topologicalSort(Clause clause, Set<Clause> visited, List<Clause> orderReversedOut) {
-        if (visited.add(clause)) {
+    private static void getReachableClauses(Clause clause, Set<Clause> reachable) {
+        if (reachable.add(clause)) {
             for (Clause subClause : clause.subClauses) {
-                topologicalSort(subClause, visited, orderReversedOut);
-            }
-            orderReversedOut.add(clause);
-        }
-    }
-
-    private static List<Clause> topologicalSort(Clause topLevelClause) {
-        var topoOrderReversed = new ArrayList<Clause>();
-        topologicalSort(topLevelClause, new HashSet<Clause>(), topoOrderReversed);
-        // Modify order to move all terminals to end of topo order
-        var topoOrderOut = new ArrayList<Clause>(topoOrderReversed.size());
-        var terminals = new ArrayList<Clause>();
-        for (int i = topoOrderReversed.size() - 1; i >= 0; --i) {
-            Clause clause = topoOrderReversed.get(i);
-            if (clause.isTerminal()) {
-                terminals.add(clause);
-            } else {
-                topoOrderOut.add(clause);
+                getReachableClauses(subClause, reachable);
             }
         }
-        Collections.sort(terminals, (t1, t2) -> t1.toString().compareTo(t2.toString()));
-        topoOrderOut.addAll(terminals);
-        return topoOrderOut;
     }
 
     public Parser(List<Clause> grammar, String input) {
@@ -154,8 +134,36 @@ public class Parser {
         }
         this.topLevelClause = topLevelClause;
 
-        // Get a list of all unique clauses
-        allClauses = topologicalSort(topLevelClause);
+        // Find reachable clauses, then sort in order of toplevel clause, then internal clauses, then terminals 
+        var reachableClausesUnique = new HashSet<Clause>();
+        getReachableClauses(topLevelClause, reachableClausesUnique);
+        allClauses = new ArrayList<Clause>();
+        allClauses.add(this.topLevelClause);
+        var sortedClauses = new ArrayList<Clause>();
+        for (Clause clause : reachableClausesUnique) {
+            if (clause != topLevelClause && !clause.isTerminal()) {
+                sortedClauses.add(clause);
+            }
+        }
+        Comparator<? super Clause> comparator = (t1, t2) -> {
+            int diff = t1.toStringWithRuleNames().compareTo(t2.toStringWithRuleNames());
+            if (diff != 0) {
+                return diff;
+            } else {
+                return t1.toString().compareTo(t2.toString());
+            }
+        };
+        Collections.sort(sortedClauses, comparator);
+        allClauses.addAll(sortedClauses);
+        sortedClauses.clear();
+        for (Clause clause : reachableClausesUnique) {
+            if (clause != topLevelClause && clause.isTerminal()) {
+                sortedClauses.add(clause);
+            }
+        }
+        Collections.sort(sortedClauses, comparator);
+        allClauses.addAll(sortedClauses);
+        sortedClauses.clear();
 
         // Initialize trigger clauses
         for (Clause clause : allClauses) {
@@ -174,20 +182,23 @@ public class Parser {
                     // (can throw away the returned Memo, the goal is just to populate the activeSet)
                     // N.B. it is precisely because the returned Memo is thrown away here (and in the invocation
                     // below) that triggers are needed to add the correct parents to the active set.
-                    Clause.matchMemoized(input, new MemoRef(clause, startPos), activeSet);
+                    clause.initTerminalParentClauses(input, startPos, activeSet);
                 }
             }
         }
 
         // Main parsing loop
         while (!activeSet.isEmpty()) {
+
+            printParseResult(); // TODO: There is a no match memo in every position -- why?
+
             Set<MemoRef> nextActiveSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoRef, Boolean>());
-            activeSet.parallelStream().forEach(activeSetMemoRef -> {
-                Clause.matchMemoized(input, activeSetMemoRef, nextActiveSet);
-            });
-            //            for (MemoRef activeSetMemoRef : activeSet) {
+            //            activeSet.parallelStream().forEach(activeSetMemoRef -> {
             //                Clause.matchMemoized(input, activeSetMemoRef, nextActiveSet);
-            //            }
+            //            });
+            for (MemoRef activeSetMemoRef : activeSet) {
+                Clause.matchMemoized(input, activeSetMemoRef, nextActiveSet);
+            }
             activeSet = nextActiveSet;
         }
     }
@@ -199,13 +210,13 @@ public class Parser {
             buf[i] = new StringBuilder();
             buf[i].append(String.format("%3d", i) + " : ");
             Clause clause = allClauses.get(i);
+            if (i == 0) {
+                buf[i].append("<toplevel> ");
+            }
             if (clause.isTerminal()) {
                 buf[i].append("<terminal> ");
             }
-            if (!clause.ruleNames.isEmpty()) {
-                buf[i].append(String.join(", ", clause.ruleNames) + " = ");
-            }
-            buf[i].append(clause);
+            buf[i].append(clause.toStringWithRuleNames());
             marginWidth = Math.max(marginWidth, buf[i].length() + 2);
         }
         int tableWidth = marginWidth + input.length() + 1;
@@ -219,11 +230,24 @@ public class Parser {
         }
         for (int i = 0; i < allClauses.size(); i++) {
             Clause clause = allClauses.get(i);
-            ConcurrentSkipListMap<Integer, Memo> startIdxToMemo = clause.startPosToMemo;
-            for (Memo memo : startIdxToMemo.values()) {
-                buf[i].setCharAt(marginWidth + memo.memoRef.startPos, memo.matched() ? '#' : '.');
-                for (int j0 = memo.memoRef.startPos + 1, j1 = j0 + memo.len, j = j0; j < j1; j++) {
-                    buf[i].setCharAt(marginWidth + j, '=');
+            if (clause.isTerminal()) {
+                // Terminals are not memoized -- have to render them directly
+                for (int j = 0; j <= input.length(); j++) {
+                    buf[i].setCharAt(marginWidth + j,
+                            clause.match(input, new MemoRef(clause, j)).matched() ? '#' : '.');
+                }
+            } else {
+                // Render memo table entries
+                for (var memo : clause.getNonOverlappingMatches(/* matchesOnly = */ false)) {
+                    MemoRef memoRef = memo.memoRef;
+                    if (memoRef.startPos <= input.length()) {
+                        buf[i].setCharAt(marginWidth + memoRef.startPos, memo.matched() ? '#' : '.');
+                        for (int j = memoRef.startPos + 1; j < memoRef.startPos + memo.len; j++) {
+                            if (j <= input.length()) {
+                                buf[i].setCharAt(marginWidth + j, '=');
+                            }
+                        }
+                    }
                 }
             }
             System.out.println(buf[i]);
@@ -268,10 +292,8 @@ public class Parser {
         for (int i = memo.memoRef.startPos, ii = memo.memoRef.startPos + memo.len; i < ii; i++) {
             consumedChars.set(i);
         }
-        var ruleNames = memo.memoRef.clause.ruleNames;
         System.out.println(indentStr + "|   ");
-        System.out
-                .println(indentStr + "+-- " + (ruleNames.isEmpty() ? "" : String.join(", ", ruleNames) + " = ") + memo);
+        System.out.println(indentStr + "+-- " + memo);
         List<Memo> matchingSubClauseMemos = memo.matchingSubClauseMemos;
         if (matchingSubClauseMemos != null) {
             for (int i = 0; i < matchingSubClauseMemos.size(); i++) {
@@ -284,7 +306,7 @@ public class Parser {
 
     public void printParseResult() {
         BitSet consumedChars = new BitSet(input.length() + 1);
-        var topLevelMatches = topLevelClause.getNonoverlappingMatches();
+        var topLevelMatches = topLevelClause.getNonOverlappingMatches(/* matchesOnly = */ true);
         if (topLevelMatches.isEmpty()) {
             System.out.println("Toplevel rule did not match");
         } else {

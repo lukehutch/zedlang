@@ -5,12 +5,12 @@ import pikaparser.memo.MemoRef;
 
 public class CharSeq extends Clause {
 
-    private final String charSeq;
+    private final String str;
     private final boolean ignoreCase;
 
-    public CharSeq(String charSeq, boolean ignoreCase) {
+    public CharSeq(String str, boolean ignoreCase) {
         super();
-        this.charSeq = charSeq;
+        this.str = str;
         this.ignoreCase = ignoreCase;
     }
 
@@ -18,22 +18,27 @@ public class CharSeq extends Clause {
     public Memo match(String input, MemoRef memoRef) {
         return new Memo(memoRef,
                 memoRef.startPos >= input.length()
-                        || !input.regionMatches(ignoreCase, memoRef.startPos, charSeq, 0, charSeq.length()) ? -1
-                                : charSeq.length());
+                        || !input.regionMatches(ignoreCase, memoRef.startPos, str, 0, str.length()) ? -1
+                                : str.length());
     }
 
     @Override
     public boolean isFirstOfRun(String input, int startPos) {
-        return startPos < charSeq.length()
-                || !input.regionMatches(ignoreCase, startPos - charSeq.length(), charSeq, 0, charSeq.length());
+        return startPos < str.length()
+                || !input.regionMatches(ignoreCase, startPos - str.length(), str, 0, str.length());
+    }
+
+    @Override
+    protected int minMatchLen() {
+        return str.length();
     }
 
     @Override
     public String toStr() {
         var buf = new StringBuilder();
         buf.append('"');
-        for (int i = 0; i < charSeq.length(); i++) {
-            char c = charSeq.charAt(i);
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
             if (c >= 32 && c <= 126) {
                 buf.append(c);
             } else {

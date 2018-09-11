@@ -34,7 +34,22 @@ public class Longest extends Clause {
 
     @Override
     public List<Clause> getTriggerSubClauses() {
+        // All sub-clauses are evaluated => need to override this
         return Arrays.asList(subClauses);
+    }
+
+    @Override
+    protected int minMatchLen() {
+        // Any sub-clause could be the matching clause, so the min match len is the maximum across all subclauses
+        int minMatchLen = 0;
+        for (int i = 0; i < subClauses.length; i++) {
+            var subClause = subClauses[i];
+            var subClauseMinMatchLen = subClause.minMatchLen();
+            if (i == 0 || subClauseMinMatchLen > minMatchLen) {
+                minMatchLen = subClauseMinMatchLen;
+            }
+        }
+        return minMatchLen;
     }
 
     @Override

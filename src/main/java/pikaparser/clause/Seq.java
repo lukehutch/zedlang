@@ -1,6 +1,7 @@
 package pikaparser.clause;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import pikaparser.memo.Memo;
 import pikaparser.memo.MemoRef;
@@ -31,6 +32,33 @@ public class Seq extends Clause {
             }
         }
         return new Memo(memoRef, matched ? currPos - memoRef.startPos : -1, matchedSubClauseMemo);
+    }
+
+    @Override
+    protected List<Clause> getTriggerSubClauses() {
+        // Return any initial terms in the sequence that can consume zero characters 
+        List<Clause> triggerSubClauses = new ArrayList<>(subClauses.length);
+        int minMatchLen = 0;
+        for (int i = 0; i < subClauses.length; i++) {
+            minMatchLen += subClauses[i].minMatchLen();
+            if (minMatchLen == 0
+                    // Always add first subclause as a trigger subclause
+                    || i == 0) {
+                triggerSubClauses.add(subClauses[i]);
+            } else {
+                break;
+            }
+        }
+        return triggerSubClauses;
+    }
+
+    @Override
+    protected int minMatchLen() {
+        int minMatchLen = 0;
+        for (int i = 0; i < subClauses.length; i++) {
+            minMatchLen += subClauses[i].minMatchLen();
+        }
+        return minMatchLen;
     }
 
     @Override

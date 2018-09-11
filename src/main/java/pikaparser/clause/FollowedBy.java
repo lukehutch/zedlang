@@ -3,13 +3,10 @@ package pikaparser.clause;
 import pikaparser.memo.Memo;
 import pikaparser.memo.MemoRef;
 
-public class RuleName extends Clause {
+public class FollowedBy extends Clause {
 
-    public final String refdRuleName;
-
-    public RuleName(String refdRuleName) {
-        super(new Clause[0]);
-        this.refdRuleName = refdRuleName;
+    public FollowedBy(Clause subClause) {
+        super(new Clause[] { subClause });
     }
 
     @Override
@@ -17,11 +14,16 @@ public class RuleName extends Clause {
         var subClauseMemoRef = new MemoRef(subClauses[0], memoRef.startPos);
         var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef);
         boolean matched = subClauseMemo.matched();
-        return new Memo(memoRef, subClauseMemo.len, matched ? subClauseMemo : null);
+        return new Memo(memoRef, matched ? 0 : -1, matched ? subClauseMemo : null);
+    }
+
+    @Override
+    protected int minMatchLen() {
+        return 0;
     }
 
     @Override
     public String toStr() {
-        return refdRuleName;
+        return "&(" + subClauses[0] + ")";
     }
 }

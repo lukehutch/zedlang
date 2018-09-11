@@ -18,6 +18,11 @@ public class NotFollowedBy extends Clause {
     }
 
     @Override
+    protected int minMatchLen() {
+        return 0;
+    }
+
+    @Override
     public String toStr() {
         return "!(" + subClauses[0] + ")";
     }

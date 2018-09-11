@@ -15,3 +15,13 @@ will have a match at position 0, and then again at the 'x'. This is inefficient,
 ...and actually that makes a lot of sense, since PEG parsing is about greedily consuming input from a fixed start position.
 
 In fact any rule (X | Nothing) will always match in every position -- the question is just how much input is matched.
+
+--
+
+"Nothing" (or anything that can match 0 characters, e.g. (X | Nothing)) is inefficient if used in the first position, since it triggers a lot of parent clause evaluations.
+
+It's more efficient to rewrite, e.g.:
+
+    (X | Nothing) Y  =>  (X Y) | Y
+
+    

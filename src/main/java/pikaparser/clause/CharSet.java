@@ -11,7 +11,13 @@ import pikaparser.memo.MemoRef;
 
 public class CharSet extends Clause {
 
-    private final Set<Character> charSet = new HashSet<>();
+    protected final Set<Character> charSet = new HashSet<>();
+
+    protected boolean invertMatch = false;
+
+    private CharSet() {
+        super(new Clause[0]);
+    }
 
     public CharSet(char c) {
         super(new Clause[0]);
@@ -22,6 +28,13 @@ public class CharSet extends Clause {
         super(new Clause[0]);
         for (int i = 0; i < chars.length(); i++) {
             this.charSet.add(chars.charAt(i));
+        }
+    }
+
+    public CharSet(char[] chars) {
+        super(new Clause[0]);
+        for (int i = 0; i < chars.length; i++) {
+            this.charSet.add(chars[i]);
         }
     }
 
@@ -46,26 +59,58 @@ public class CharSet extends Clause {
         }
     }
 
+    /** Invert in-place, and return this. */
+    public CharSet invert() {
+        invertMatch = !invertMatch;
+        return this;
+    }
+
+    @Override
+    protected int minMatchLen() {
+        return 1;
+    }
+
     @Override
     public Memo match(String input, MemoRef memoRef) {
-        return new Memo(memoRef,
-                memoRef.startPos >= input.length() || !charSet.contains(input.charAt(memoRef.startPos)) ? -1 : 1);
+        boolean match = memoRef.startPos < input.length() && charSet.contains(input.charAt(memoRef.startPos));
+        return new Memo(memoRef, (invertMatch ? !match : match) ? 1 : -1);
     }
 
     @Override
     public boolean isFirstOfRun(String input, int startPos) {
-        return startPos == 0 || !charSet.contains(input.charAt(startPos - 1));
+        boolean match = startPos == 0 || !charSet.contains(input.charAt(startPos - 1));
+        return invertMatch ? !match : match;
     }
 
+    // TODO: fix the escaping
     @Override
     public String toStr() {
         var buf = new StringBuilder();
+        if (invertMatch) {
+            buf.append('^');
+        }
         var charsSorted = new ArrayList<>(charSet);
         Collections.sort(charsSorted);
         for (int i = 0; i < charsSorted.size(); i++) {
             char c = charsSorted.get(i);
             if (c >= 32 && c <= 126) {
-                buf.append(c);
+                if (c == '^' && i == 0 && charSet.size() > 1) {
+                    // Escape '^' at beginning of non-inverted character set range
+                    buf.append('\\');
+                } else if (c == ']' && charSet.size() > 1) {
+                    // Escape ']' within char range
+                    buf.append('\\');
+                } else if (c == '\\') {
+                    buf.append("\\\\");
+                } else {
+                    buf.append(c);
+                }
+            } else if (c == '\n') {
+                buf.append("\\n");
+            } else if (c == '\r') {
+                buf.append("\\r");
+            } else if (c == '\t') {
+                buf.append("\\t");
             } else {
                 buf.append("\\u" + String.format("%04x", (int) c));
             }
@@ -79,6 +124,9 @@ public class CharSet extends Clause {
                 buf.append(charsSorted.get(i));
             }
         }
-        return buf.length() == 1 && buf.charAt(0) >= 32 && buf.charAt(0) <= 126 ? "'" + buf + "'" : "[" + buf + "]";
+        String s = buf.toString();
+        return (!invertMatch && s.length() == 1 && s.charAt(0) >= 32 && s.charAt(0) <= 126) //
+                ? "'" + s + "'" //
+                : "[" + s + "]";
     }
 }

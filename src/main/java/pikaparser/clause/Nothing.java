@@ -22,6 +22,11 @@ public class Nothing extends Clause {
     }
 
     @Override
+    protected int minMatchLen() {
+        return 0;
+    }
+
+    @Override
     public String toStr() {
         return "Nothing";
     }
