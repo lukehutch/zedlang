@@ -1,5 +1,6 @@
 package pikaparser.clause;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -131,6 +132,32 @@ public abstract class Clause {
     /** Returns whether this clause is the first in a run of matches of the same clause. */
     protected boolean isFirstOfRun(String input, int startPos) {
         return !matchEndPositions.contains(startPos);
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the {@link Memo} entries for all nonoverlapping matches of this clause, obtained by greedily matching from
+     * the beginning of the string to the end.
+     */
+    public List<Memo> getNonoverlappingMatches() {
+        var firstEntry = startPosToMemo.firstEntry();
+        var nonoverlappingMatches = new ArrayList<Memo>();
+        if (firstEntry != null) {
+            // If there was at least one memo entry
+            for (var ent = firstEntry; ent != null;) {
+                var memo = ent.getValue();
+                if (memo.matched()) {
+                    nonoverlappingMatches.add(memo);
+                }
+                var startPos = ent.getKey();
+                // Only greedily start looking for a new match in the memo table after the end of the previous match.
+                // Also, len has to increase monotonically to avoid getting stuck in an infinite loop.
+                var len = Math.max(1, memo.len);
+                ent = startPosToMemo.higherEntry(startPos + len);
+            }
+        }
+        return nonoverlappingMatches;
     }
 
     // -----------------------------------------------------------------------------------------------------------------

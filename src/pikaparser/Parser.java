@@ -1,6 +1,7 @@
 package pikaparser;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -191,7 +192,7 @@ public class Parser {
         }
     }
 
-    public void printMemoTable() {
+    private void printMemoTable(BitSet consumedChars) {
         StringBuilder[] buf = new StringBuilder[allClauses.size()];
         int marginWidth = 0;
         for (int i = 0; i < allClauses.size(); i++) {
@@ -239,6 +240,13 @@ public class Parser {
             System.out.print(' ');
         }
         System.out.println(input.replace('\n', '^'));
+        for (int j = 0; j < marginWidth; j++) {
+            System.out.print(' ');
+        }
+        for (int i = 0; i < input.length(); i++) {
+            System.out.print(consumedChars.get(i) ? " " : "~");
+        }
+        System.out.println();
 
         //        // Highlight any syntax errors
         //        if (syntaxErrors != null && syntaxErrors.size() > 0) {
@@ -256,7 +264,10 @@ public class Parser {
         //        }
     }
 
-    private void printParseTree(Memo memo, String indentStr, boolean isLastChild) {
+    private void printParseTree(Memo memo, String indentStr, boolean isLastChild, BitSet consumedChars) {
+        for (int i = memo.memoRef.startPos, ii = memo.memoRef.startPos + memo.len; i < ii; i++) {
+            consumedChars.set(i);
+        }
         var ruleNames = memo.memoRef.clause.ruleNames;
         System.out.println(indentStr + "|   ");
         System.out
@@ -266,36 +277,23 @@ public class Parser {
             for (int i = 0; i < matchingSubClauseMemos.size(); i++) {
                 Memo subClause = matchingSubClauseMemos.get(i);
                 printParseTree(subClause, indentStr + (isLastChild ? "    " : "|   "),
-                        i == matchingSubClauseMemos.size() - 1);
+                        i == matchingSubClauseMemos.size() - 1, consumedChars);
             }
         }
     }
 
-    public void printParseTree() {
-        var firstEntry = topLevelClause.startPosToMemo.firstEntry();
-        var topLevelMatches = new ArrayList<Memo>();
-        if (firstEntry != null) {
-            // There may be multiple toplevel matches.
-            // Also, need to take the matches greedily (don't look for another match until after end of the curr match)
-            var ent = firstEntry;
-            while (ent != null) {
-                var memo = ent.getValue();
-                if (memo.matched()) {
-                    topLevelMatches.add(memo);
-                }
-                var startPos = ent.getKey();
-                // Len has to increase monotonically to avoid getting stuck in an infinite loop
-                var len = Math.max(1, memo.len);
-                ent = topLevelClause.startPosToMemo.higherEntry(startPos + len);
-            }
-        }
+    public void printParseResult() {
+        BitSet consumedChars = new BitSet(input.length() + 1);
+        var topLevelMatches = topLevelClause.getNonoverlappingMatches();
         if (topLevelMatches.isEmpty()) {
             System.out.println("Toplevel rule did not match");
         } else {
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
-                printParseTree(topLevelMatch, "", i == topLevelMatches.size() - 1);
+                printParseTree(topLevelMatch, "", i == topLevelMatches.size() - 1, consumedChars);
             }
         }
+        System.out.println();
+        printMemoTable(consumedChars);
     }
 }

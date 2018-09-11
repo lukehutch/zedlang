@@ -26,11 +26,9 @@ public class Test {
 
         var parser = new Parser(grammar, input);
 
-        parser.printMemoTable();
-
         System.out.println();
 
-        parser.printParseTree();
+        parser.printParseResult();
     }
 
 }
