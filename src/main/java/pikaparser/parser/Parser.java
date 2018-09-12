@@ -1,9 +1,7 @@
 package pikaparser.parser;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -13,8 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.RuleName;
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class Parser {
 
@@ -28,17 +26,19 @@ public class Parser {
 
     public final List<Clause> allClauses;
 
+    private static final boolean PARALLELIZE = false;
+
     private Clause internClause(Clause clause, Set<Clause> visited) {
+        String clauseStr = clause.toString();
+        var alreadyInternedClause = clauseStrToClauseInterned.get(clauseStr);
+        if (alreadyInternedClause != null) {
+            // Rule is already interned, just add any missing rule names and return interned version
+            alreadyInternedClause.ruleNames.addAll(clause.ruleNames);
+            return alreadyInternedClause;
+        }
+
         // Prevent infinite loop, in case grammar is self-referential
         if (visited.add(clause)) {
-            String clauseStr = clause.toString();
-            var alreadyInternedClause = clauseStrToClauseInterned.get(clauseStr);
-            if (alreadyInternedClause != null) {
-                // Rule is already interned, just add any missing rule names and return interned version
-                alreadyInternedClause.ruleNames.addAll(clause.ruleNames);
-                return alreadyInternedClause;
-            }
-
             // Clause has not yet been interned
             for (int i = 0; i < clause.subClauses.length; i++) {
                 // For RuleNameRef, subClause starts out null
@@ -52,7 +52,7 @@ public class Parser {
         return clause;
     }
 
-    private static void getReachableClauses(Clause clause, Set<Clause> reachable) {
+    static void getReachableClauses(Clause clause, Set<Clause> reachable) {
         if (reachable.add(clause)) {
             for (Clause subClause : clause.subClauses) {
                 getReachableClauses(subClause, reachable);
@@ -134,36 +134,10 @@ public class Parser {
         }
         this.topLevelClause = topLevelClause;
 
-        // Find reachable clauses, then sort in order of toplevel clause, then internal clauses, then terminals 
+        // Find reachable clauses 
         var reachableClausesUnique = new HashSet<Clause>();
         getReachableClauses(topLevelClause, reachableClausesUnique);
-        allClauses = new ArrayList<Clause>();
-        allClauses.add(this.topLevelClause);
-        var sortedClauses = new ArrayList<Clause>();
-        for (Clause clause : reachableClausesUnique) {
-            if (clause != topLevelClause && !clause.isTerminal()) {
-                sortedClauses.add(clause);
-            }
-        }
-        Comparator<? super Clause> comparator = (t1, t2) -> {
-            int diff = t1.toStringWithRuleNames().compareTo(t2.toStringWithRuleNames());
-            if (diff != 0) {
-                return diff;
-            } else {
-                return t1.toString().compareTo(t2.toString());
-            }
-        };
-        Collections.sort(sortedClauses, comparator);
-        allClauses.addAll(sortedClauses);
-        sortedClauses.clear();
-        for (Clause clause : reachableClausesUnique) {
-            if (clause != topLevelClause && clause.isTerminal()) {
-                sortedClauses.add(clause);
-            }
-        }
-        Collections.sort(sortedClauses, comparator);
-        allClauses.addAll(sortedClauses);
-        sortedClauses.clear();
+        allClauses = new ArrayList<Clause>(reachableClausesUnique);
 
         // Initialize trigger clauses
         for (Clause clause : allClauses) {
@@ -189,133 +163,29 @@ public class Parser {
 
         // Main parsing loop
         while (!activeSet.isEmpty()) {
+            ParserInfo.printParseResult(this);
 
-            printParseResult(); // TODO: There is a no match memo in every position -- why?
-
-            Set<MemoRef> nextActiveSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoRef, Boolean>());
-            //            activeSet.parallelStream().forEach(activeSetMemoRef -> {
-            //                Clause.matchMemoized(input, activeSetMemoRef, nextActiveSet);
-            //            });
+            // Set<MemoRef> nextActiveSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoRef, Boolean>());
+            //            if (PARALLELIZE) {
+            //                activeSet.parallelStream().forEach(activeSetMemoRef -> {
+            //                    Clause.matchMemoized(input, activeSetMemoRef, nextActiveSet);
+            //                });
+            //            } else {
+            var newMemos = new ArrayList<Memo>(activeSet.size());
             for (MemoRef activeSetMemoRef : activeSet) {
-                Clause.matchMemoized(input, activeSetMemoRef, nextActiveSet);
+                Memo match = activeSetMemoRef.clause.match(input, activeSetMemoRef, /* isFirstMatchPosition = */ true);
+                newMemos.add(match);
+
+                System.out.println("-> " + activeSetMemoRef + " => " + match);
             }
+            Set<MemoRef> nextActiveSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoRef, Boolean>());
+            for (var newMemo : newMemos) {
+                // TODO: don't store memo if it is the result of a sub-* clause matching Nothing?
+
+                Clause.storeMemo(input, newMemo, nextActiveSet);
+            }
+            //            }
             activeSet = nextActiveSet;
         }
-    }
-
-    private void printMemoTable(BitSet consumedChars) {
-        StringBuilder[] buf = new StringBuilder[allClauses.size()];
-        int marginWidth = 0;
-        for (int i = 0; i < allClauses.size(); i++) {
-            buf[i] = new StringBuilder();
-            buf[i].append(String.format("%3d", i) + " : ");
-            Clause clause = allClauses.get(i);
-            if (i == 0) {
-                buf[i].append("<toplevel> ");
-            }
-            if (clause.isTerminal()) {
-                buf[i].append("<terminal> ");
-            }
-            buf[i].append(clause.toStringWithRuleNames());
-            marginWidth = Math.max(marginWidth, buf[i].length() + 2);
-        }
-        int tableWidth = marginWidth + input.length() + 1;
-        for (int i = 0; i < allClauses.size(); i++) {
-            while (buf[i].length() < marginWidth) {
-                buf[i].append(' ');
-            }
-            while (buf[i].length() < tableWidth) {
-                buf[i].append('-');
-            }
-        }
-        for (int i = 0; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(i);
-            if (clause.isTerminal()) {
-                // Terminals are not memoized -- have to render them directly
-                for (int j = 0; j <= input.length(); j++) {
-                    buf[i].setCharAt(marginWidth + j,
-                            clause.match(input, new MemoRef(clause, j)).matched() ? '#' : '.');
-                }
-            } else {
-                // Render memo table entries
-                for (var memo : clause.getNonOverlappingMatches(/* matchesOnly = */ false)) {
-                    MemoRef memoRef = memo.memoRef;
-                    if (memoRef.startPos <= input.length()) {
-                        buf[i].setCharAt(marginWidth + memoRef.startPos, memo.matched() ? '#' : '.');
-                        for (int j = memoRef.startPos + 1; j < memoRef.startPos + memo.len; j++) {
-                            if (j <= input.length()) {
-                                buf[i].setCharAt(marginWidth + j, '=');
-                            }
-                        }
-                    }
-                }
-            }
-            System.out.println(buf[i]);
-        }
-
-        for (int j = 0; j < marginWidth; j++) {
-            System.out.print(' ');
-        }
-        for (int i = 0; i < input.length(); i++) {
-            System.out.print(i % 10);
-        }
-        System.out.println();
-        for (int j = 0; j < marginWidth; j++) {
-            System.out.print(' ');
-        }
-        System.out.println(input.replace('\n', '^'));
-        for (int j = 0; j < marginWidth; j++) {
-            System.out.print(' ');
-        }
-        for (int i = 0; i < input.length(); i++) {
-            System.out.print(consumedChars.get(i) ? " " : "~");
-        }
-        System.out.println();
-
-        //        // Highlight any syntax errors
-        //        if (syntaxErrors != null && syntaxErrors.size() > 0) {
-        //            StringBuilder buf = new StringBuilder();
-        //            for (int i = 0; i < input.length(); i++) {
-        //                buf.append(' ');
-        //            }
-        //            for (Entry<Integer, Integer> ent : syntaxErrors.entrySet()) {
-        //                int startIdx = ent.getKey(), endIdx = ent.getValue();
-        //                for (int i = startIdx; i < endIdx; i++) {
-        //                    buf.setCharAt(i, '^');
-        //                }
-        //            }
-        //            System.out.println(indent + buf);
-        //        }
-    }
-
-    private void printParseTree(Memo memo, String indentStr, boolean isLastChild, BitSet consumedChars) {
-        for (int i = memo.memoRef.startPos, ii = memo.memoRef.startPos + memo.len; i < ii; i++) {
-            consumedChars.set(i);
-        }
-        System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + memo);
-        List<Memo> matchingSubClauseMemos = memo.matchingSubClauseMemos;
-        if (matchingSubClauseMemos != null) {
-            for (int i = 0; i < matchingSubClauseMemos.size(); i++) {
-                Memo subClause = matchingSubClauseMemos.get(i);
-                printParseTree(subClause, indentStr + (isLastChild ? "    " : "|   "),
-                        i == matchingSubClauseMemos.size() - 1, consumedChars);
-            }
-        }
-    }
-
-    public void printParseResult() {
-        BitSet consumedChars = new BitSet(input.length() + 1);
-        var topLevelMatches = topLevelClause.getNonOverlappingMatches(/* matchesOnly = */ true);
-        if (topLevelMatches.isEmpty()) {
-            System.out.println("Toplevel rule did not match");
-        } else {
-            for (int i = 0; i < topLevelMatches.size(); i++) {
-                var topLevelMatch = topLevelMatches.get(i);
-                printParseTree(topLevelMatch, "", i == topLevelMatches.size() - 1, consumedChars);
-            }
-        }
-        System.out.println();
-        printMemoTable(consumedChars);
     }
 }

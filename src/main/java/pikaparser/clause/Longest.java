@@ -3,8 +3,8 @@ package pikaparser.clause;
 import java.util.Arrays;
 import java.util.List;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class Longest extends Clause {
 
@@ -16,12 +16,12 @@ public class Longest extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef) {
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         var longestMatchMemo = (Memo) null;
         var longestMatchLen = -1;
         for (var subClause : subClauses) {
             var subClauseMemoRef = new MemoRef(subClause, memoRef.startPos);
-            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef);
+            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef, isFirstMatchPosition);
             if (subClauseMemo.matched()) {
                 if (subClauseMemo.len > longestMatchLen) {
                     longestMatchLen = subClauseMemo.len;
@@ -36,20 +36,6 @@ public class Longest extends Clause {
     public List<Clause> getTriggerSubClauses() {
         // All sub-clauses are evaluated => need to override this
         return Arrays.asList(subClauses);
-    }
-
-    @Override
-    protected int minMatchLen() {
-        // Any sub-clause could be the matching clause, so the min match len is the maximum across all subclauses
-        int minMatchLen = 0;
-        for (int i = 0; i < subClauses.length; i++) {
-            var subClause = subClauses[i];
-            var subClauseMinMatchLen = subClause.minMatchLen();
-            if (i == 0 || subClauseMinMatchLen > minMatchLen) {
-                minMatchLen = subClauseMinMatchLen;
-            }
-        }
-        return minMatchLen;
     }
 
     @Override

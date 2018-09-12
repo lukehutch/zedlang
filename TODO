@@ -7,3 +7,26 @@
    -- Make OneOrMore look at this flag, and add OneOrMoreSuffix rule type that ignores the flag 
    
 -- Don't add memo entries for terminals that don't match
+
+------------------
+
+Two problems:
+
+(1)
+- Link the parent and subclause Memo objects together, rather than using MemoRefs
+- When an old memo table entry gets overwritten, send a message to the parents of the old memo entry, with the old memo and the new memo value
+  - Collect these replacements within each parent memo, so that all subclause memos that have changed in one iteration are available, then start evaluating the clause again from the first changed subclause,
+    producing a new parent Memo. Schedule that new parent Memo to be written into the table over the old parent Memo, if it is longer / matches an earlier FirstMatch rule.
+    Whether or not the new parent Memo gets written into the table, pass the message up to its parent memos too indicating that its match status has changed, since the new g-*-grandparent memo may be able to be
+    written into the memo table. 
+*** Actually, when a new memo entry is added, *all* earlier matches that tried reading from that memoref need to resume matching at the subclause they were up to.
+  - Memo entries should therefore be a partial match within a Clause, so that matching at the precise affected subclause can resume in O(1) for each clause.
+  - Memo entries therefore need to keep track of the parent Memo, and for each, the partial match status (sub-clause index) up to this current Memo.
+  - When partial matching resumes at the current Memo, the old partial matches from that point on can be thrown away.
+  - After partial matching has completed, the parent Memo is overwritten with the new Memo, consisting of new partial matches, triggering the next set of partial evaluations.
+     
+
+(2)
+- Currently the set that indicates that a match ends at a given position (used by OneOrMore) is too aggressive: it indicates that a match *may* end at a given position, not that it does end there.
+  Probably need to remove this, and maybe support a "PrecededBy" / "NotPrecededBy".
+  

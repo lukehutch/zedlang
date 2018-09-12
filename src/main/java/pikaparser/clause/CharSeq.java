@@ -1,7 +1,7 @@
 package pikaparser.clause;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class CharSeq extends Clause {
 
@@ -15,7 +15,7 @@ public class CharSeq extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef) {
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         return new Memo(memoRef,
                 memoRef.startPos >= input.length()
                         || !input.regionMatches(ignoreCase, memoRef.startPos, str, 0, str.length()) ? -1
@@ -26,11 +26,6 @@ public class CharSeq extends Clause {
     public boolean isFirstOfRun(String input, int startPos) {
         return startPos < str.length()
                 || !input.regionMatches(ignoreCase, startPos - str.length(), str, 0, str.length());
-    }
-
-    @Override
-    protected int minMatchLen() {
-        return str.length();
     }
 
     @Override

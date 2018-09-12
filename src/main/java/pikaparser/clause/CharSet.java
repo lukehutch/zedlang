@@ -6,8 +6,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class CharSet extends Clause {
 
@@ -66,12 +66,7 @@ public class CharSet extends Clause {
     }
 
     @Override
-    protected int minMatchLen() {
-        return 1;
-    }
-
-    @Override
-    public Memo match(String input, MemoRef memoRef) {
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         boolean match = memoRef.startPos < input.length() && charSet.contains(input.charAt(memoRef.startPos));
         return new Memo(memoRef, (invertMatch ? !match : match) ? 1 : -1);
     }

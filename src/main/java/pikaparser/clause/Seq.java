@@ -1,10 +1,9 @@
 package pikaparser.clause;
 
 import java.util.ArrayList;
-import java.util.List;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class Seq extends Clause {
 
@@ -16,13 +15,16 @@ public class Seq extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef) {
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         var matchedSubClauseMemo = new ArrayList<Memo>();
         var currPos = memoRef.startPos;
         var matched = true;
         for (var subClause : subClauses) {
             var subClauseMemoRef = new MemoRef(subClause, currPos);
-            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef);
+            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef,
+                    // Handle the interplay between Seq and OneOrMore: only match a OneOrMore if it is
+                    // not in the first position of this OneOrMore rule, or if it is the first in a run
+                    /* isFirstMatchPosition = */ currPos == memoRef.startPos);
             if (!subClauseMemo.matched()) {
                 matched = false;
                 break;
@@ -32,33 +34,6 @@ public class Seq extends Clause {
             }
         }
         return new Memo(memoRef, matched ? currPos - memoRef.startPos : -1, matchedSubClauseMemo);
-    }
-
-    @Override
-    protected List<Clause> getTriggerSubClauses() {
-        // Return any initial terms in the sequence that can consume zero characters 
-        List<Clause> triggerSubClauses = new ArrayList<>(subClauses.length);
-        int minMatchLen = 0;
-        for (int i = 0; i < subClauses.length; i++) {
-            minMatchLen += subClauses[i].minMatchLen();
-            if (minMatchLen == 0
-                    // Always add first subclause as a trigger subclause
-                    || i == 0) {
-                triggerSubClauses.add(subClauses[i]);
-            } else {
-                break;
-            }
-        }
-        return triggerSubClauses;
-    }
-
-    @Override
-    protected int minMatchLen() {
-        int minMatchLen = 0;
-        for (int i = 0; i < subClauses.length; i++) {
-            minMatchLen += subClauses[i].minMatchLen();
-        }
-        return minMatchLen;
     }
 
     @Override

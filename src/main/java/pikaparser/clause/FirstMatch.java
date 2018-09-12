@@ -3,8 +3,8 @@ package pikaparser.clause;
 import java.util.Arrays;
 import java.util.List;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class FirstMatch extends Clause {
 
@@ -16,39 +16,28 @@ public class FirstMatch extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef) {
-        var matchingSubClauseMemo = (Memo) null;
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         var matchLen = -1;
-        for (var subClause : subClauses) {
+        var matchingSubClauseIdx = 0;
+        var matchingSubClauseMemo = (Memo) null;
+        for (int i = 0; i < subClauses.length; i++) {
+            var subClause = subClauses[i];
             var subClauseMemoRef = new MemoRef(subClause, memoRef.startPos);
-            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef);
+            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef, isFirstMatchPosition);
             if (subClauseMemo.matched()) {
                 matchLen = subClauseMemo.len;
+                matchingSubClauseIdx = i;
                 matchingSubClauseMemo = subClauseMemo;
                 break;
             }
         }
-        return new Memo(memoRef, matchLen, matchingSubClauseMemo);
+        return new Memo(memoRef, matchLen, matchingSubClauseMemo, matchingSubClauseIdx);
     }
 
     @Override
     public List<Clause> getTriggerSubClauses() {
         // Any sub-clause could be the matching clause, so need to override this
         return Arrays.asList(subClauses);
-    }
-
-    @Override
-    protected int minMatchLen() {
-        // Any sub-clause could be the matching clause, so the min match len is the minimum across all subclauses
-        int minMatchLen = 0;
-        for (int i = 0; i < subClauses.length; i++) {
-            var subClause = subClauses[i];
-            var subClauseMinMatchLen = subClause.minMatchLen();
-            if (i == 0 || subClauseMinMatchLen < minMatchLen) {
-                minMatchLen = subClauseMinMatchLen;
-            }
-        }
-        return minMatchLen;
     }
 
     @Override

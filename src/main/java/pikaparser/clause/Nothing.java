@@ -1,7 +1,7 @@
 package pikaparser.clause;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class Nothing extends Clause {
 
@@ -10,7 +10,7 @@ public class Nothing extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef) {
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         return new Memo(memoRef, 0);
     }
 
@@ -22,12 +22,7 @@ public class Nothing extends Clause {
     }
 
     @Override
-    protected int minMatchLen() {
-        return 0;
-    }
-
-    @Override
     public String toStr() {
-        return "Nothing";
+        return "()";
     }
 }

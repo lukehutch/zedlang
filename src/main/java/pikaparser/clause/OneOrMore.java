@@ -2,8 +2,8 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class OneOrMore extends Clause {
 
@@ -19,23 +19,24 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef) {
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         var matchingSubClauseMemos = new ArrayList<Memo>(subClauses.length);
         var currPos = memoRef.startPos;
         for (boolean first = true; currPos < input.length();) {
             var subClauseMemoRef = new MemoRef(subClauses[0], currPos);
-            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef);
+            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef, isFirstMatchPosition);
             if (!subClauseMemo.matched()) {
                 // Ran out of subclause matches
                 break;
             } else {
-                if (first) {
-                    if (!suffixMatch && !subClauses[0].isFirstOfRun(input, currPos)) {
-                        // For non-suffix matches: this subclause matched, but was not the first of a run => no match
-                        break;
-                    }
-                    first = false;
-                }
+//                if (first) {
+//                    if (!suffixMatch && isFirstMatchPosition && !subClauses[0].isFirstOfRun(input, currPos)) {
+//                        // For non-suffix matches: this subclause matched in the first position of a rule,
+//                        // but was not the first of a run => no match
+//                        break;
+//                    }
+//                    first = false;
+//                }
                 matchingSubClauseMemos.add(subClauseMemo);
                 if (subClauseMemo.len == 0) {
                     // Prevent infinite loop -- if match consumed zero characters, can only match it once
@@ -48,11 +49,6 @@ public class OneOrMore extends Clause {
         }
         return new Memo(memoRef, !matchingSubClauseMemos.isEmpty() ? currPos - memoRef.startPos : -1,
                 matchingSubClauseMemos);
-    }
-
-    @Override
-    protected int minMatchLen() {
-        return subClauses[0].minMatchLen();
     }
 
     @Override

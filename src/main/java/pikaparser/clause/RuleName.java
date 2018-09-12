@@ -1,7 +1,7 @@
 package pikaparser.clause;
 
-import pikaparser.memo.Memo;
-import pikaparser.memo.MemoRef;
+import pikaparser.memo.old.Memo;
+import pikaparser.memo.old.MemoRef;
 
 public class RuleName extends Clause {
 
@@ -13,12 +13,7 @@ public class RuleName extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef) {
-        throw new IllegalArgumentException("RuleName should not be part of final grammar");
-    }
-
-    @Override
-    protected int minMatchLen() {
+    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
         throw new IllegalArgumentException("RuleName should not be part of final grammar");
     }
 

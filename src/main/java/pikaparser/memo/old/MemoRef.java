@@ -1,4 +1,4 @@
-package pikaparser.memo;
+package pikaparser.memo.old;
 
 import pikaparser.clause.Clause;
 

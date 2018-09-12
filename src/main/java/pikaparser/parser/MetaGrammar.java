@@ -102,6 +102,7 @@ public class MetaGrammar {
 
                 name("Clause", //
                         first( //
+                                r("Nothing"), //
                                 seq(c('('), ws, r("Rule"), c(')')), //
                                 r("CharSeq"), //
                                 r("CharSet"), //
@@ -109,13 +110,12 @@ public class MetaGrammar {
                                 r("FollowedBy"), //
                                 r("NotFollowedBy"), //
                                 r("Longest"), //
-                                r("Nothing"), //
                                 r("OneOrMore"), //
                                 r("Seq"), //
                                 r("RuleName"))), //
 
                 name("RuleNames", //
-                        seq(r("RuleIdent"), zeroOrMore(seq(ws, c(','), ws, r("RuleIdent"))), ws)), //
+                        seq(r("RuleIdent"), zeroOrMore(seq(ws, c(','), ws, r("RuleIdent"))))), //
 
                 name("RuleIdent", //
                         oneOrMore(r("RuleIdentChar"))), //
@@ -173,7 +173,7 @@ public class MetaGrammar {
                         seq(r("Clause"), oneOrMore(seq(ws, c('^'), ws, r("Clause"))))),
 
                 name("Nothing", //
-                        text("Nothing")),
+                        seq(c('('), ws, c(')'))),
 
                 name("OneOrMore", //
                         seq(r("Clause"), ws, first( //
