@@ -1,5 +1,6 @@
 package pikaparser.clause;
 
+import java.util.List;
 import java.util.Set;
 
 import pikaparser.memotable.Match;
@@ -34,9 +35,28 @@ public class Seq extends Clause {
             prevContext = new ParsingContext(parentMemoEntry, prevContext, subClauseMatch, subClauseIdx);
             currPos += subClauseMatch.len;
         }
-        return matched ? prevContext.getParentMatch(this) : null;
+        Match match = matched ? prevContext.getParentMatch(this) : null;
+        if (matched && this.toString().equals("(Clause (WS '|' WS Clause)+)")) {
+            System.out.println();
+            System.out.println("** " + this + "\n" + toStr(match, 0));
+        }
+        return match;
     }
 
+    private static String toStr(Match match, int depth) {
+        StringBuilder buf = new StringBuilder();
+        for (int i = 0; i < depth * 2 + 2; i++) {
+            buf.append(" ");
+        }
+        buf.append(match + "\n");
+        List<Match> subClauseMatches = match.subClauseMatches;
+        for (int i = 0; i < subClauseMatches.size(); i++) {
+            Match scm = subClauseMatches.get(i);
+            buf.append(toStr(scm, depth + 1));
+        }
+        return buf.toString();
+    }
+    
     @Override
     public String toString() {
         if (toStringCached == null) {
