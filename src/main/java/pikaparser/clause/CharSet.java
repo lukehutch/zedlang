@@ -76,7 +76,7 @@ public class CharSet extends Clause {
     @Override
     public Match getCurrBestMatch(String input, ParsingContext prevSubClauseParsingContextUnused, int startPos,
             Set<MemoEntry> memoEntriesWithNewParsingContextsUnused) {
-        boolean match = startPos < input.length() && charSet.contains(input.charAt(startPos));
+        boolean match = startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(startPos)));
         return match ? new Match(this, startPos, /* len = */ 1, /* subClauseMatches = */ Collections.emptyList(),
                 /* firstMatchingSubClauseIdx = */ 0) : null;
     }

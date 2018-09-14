@@ -114,6 +114,7 @@ public class ParserInfo {
         if (inp.length() == inpLen) {
             inp += "...";
         }
+        inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
         System.out.println(indentStr + "+-- " + match + " : \"" + inp + "\"");
         List<Match> subClauseMatches = match.subClauseMatches;

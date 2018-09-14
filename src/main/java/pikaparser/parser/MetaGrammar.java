@@ -102,17 +102,17 @@ public class MetaGrammar {
 
                 name("Clause", //
                         first( //
-                                r("Nothing"), //
-                                seq(c('('), ws, r("Rule"), c(')')), //
-                                r("CharSeq"), //
-                                r("CharSet"), //
+                                seq(c('('), ws, r("Clause"), c(')')), //
+                                r("Seq"), //
                                 r("FirstMatch"), //
+                                r("OneOrMore"), //
                                 r("FollowedBy"), //
                                 r("NotFollowedBy"), //
-                                r("Longest"), //
-                                r("OneOrMore"), //
-                                r("Seq"), //
-                                r("RuleName"))), //
+                                r("RuleName"), //
+                                r("CharSeq"), //
+                                r("CharSet"), //
+                                r("Nothing") //
+                        )), //
 
                 name("RuleNames", //
                         seq(r("RuleIdent"), zeroOrMore(seq(ws, c(','), ws, r("RuleIdent"))))), //
@@ -139,7 +139,8 @@ public class MetaGrammar {
                                 text("\\'"), //
                                 text("\\\""), //
                                 text("\\\\"), //
-                                seq(text("\\u"), r("Hex"), r("Hex"), r("Hex"), r("Hex")))), //
+                                seq(text("\\u"), r("Hex"), r("Hex"), r("Hex"), r("Hex")), //
+                                new CharSet('\\').invert())), //
 
                 name("Hex", new CharSet(DIGIT, new CharSet('a', 'f'), new CharSet('A', 'F'))), //
 
@@ -168,9 +169,6 @@ public class MetaGrammar {
 
                 name("NotFollowedBy", //
                         seq(c('!'), r("Clause"))),
-
-                name("Longest", //
-                        seq(r("Clause"), oneOrMore(seq(ws, c('^'), ws, r("Clause"))))),
 
                 name("Nothing", //
                         seq(c('('), ws, c(')'))),

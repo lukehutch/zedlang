@@ -1,6 +1,6 @@
 import java.io.IOException;
 
-import pikaparser.parser.MetaGrammarSimple;
+import pikaparser.parser.MetaGrammar;
 import pikaparser.parser.Parser;
 import pikaparser.parser.ParserInfo;
 
@@ -28,22 +28,22 @@ public class Test {
         //            ParserInfo.printParseResult(parser);
         //        }
 
-        //        {
-        //            String grammarStr;
-        //            try (var stream = Test.class.getClassLoader().getResource("testGrammar").openStream()) {
-        //                grammarStr = new String(stream.readAllBytes());
-        //            }
-        //            Parser parser = MetaGrammar.newParser(grammarStr);
-        //
-        //            ParserInfo.printParseResult(parser);
-        //        }
-
         {
-            String grammarStr = "x (x y (a b c))";
-            Parser parser = MetaGrammarSimple.newParser(grammarStr);
+            String grammarStr;
+            try (var stream = Test.class.getClassLoader().getResource("testGrammar").openStream()) {
+                grammarStr = new String(stream.readAllBytes());
+            }
+            Parser parser = MetaGrammar.newParser(grammarStr);
 
             ParserInfo.printParseResult(parser);
         }
+
+        //        {
+        //            String grammarStr = "x (x y (a b c))";
+        //            Parser parser = MetaGrammarSimple.newParser(grammarStr);
+        //
+        //            ParserInfo.printParseResult(parser);
+        //        }
     }
 
 }
