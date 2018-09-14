@@ -18,7 +18,7 @@ In fact any rule (X | Nothing) will always match in every position -- the questi
 
 --
 
-"Nothing" (or anything that can match 0 characters, e.g. (X | Nothing)) is inefficient if used in the first position, since it triggers a lot of parent clause evaluations.
+"Nothing" (or anything that can match 0 characters, e.g. (X | Nothing)) is inefficient if used in the first position, since it seeds a lot of parent clause evaluations.
 
 It's more efficient to rewrite, e.g.:
 

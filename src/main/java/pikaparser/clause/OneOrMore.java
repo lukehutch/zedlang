@@ -1,58 +1,46 @@
 package pikaparser.clause;
 
-import java.util.ArrayList;
+import java.util.Set;
 
-import pikaparser.memo.old.Memo;
-import pikaparser.memo.old.MemoRef;
+import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.ParsingContext;
 
 public class OneOrMore extends Clause {
 
-    private boolean suffixMatch;
-
     public OneOrMore(Clause subClause) {
-        this(subClause, /* suffixMatch = */ false);
-    }
-
-    protected OneOrMore(Clause subClause, boolean suffixMatch) {
         super(new Clause[] { subClause });
-        this.suffixMatch = suffixMatch;
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
-        var matchingSubClauseMemos = new ArrayList<Memo>(subClauses.length);
-        var currPos = memoRef.startPos;
-        for (boolean first = true; currPos < input.length();) {
-            var subClauseMemoRef = new MemoRef(subClauses[0], currPos);
-            var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef, isFirstMatchPosition);
-            if (!subClauseMemo.matched()) {
-                // Ran out of subclause matches
+    public Match extendParsingContext(String input, MemoEntry parentMemoEntry,
+            ParsingContext prevSubClauseParsingContext, int startPos,
+            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+        var matched = false;
+        var prevContext = prevSubClauseParsingContext;
+        for (var currPos = startPos;;) {
+            var subClauseMatch = subClauses[0].getCurrBestMatch(input, prevContext, currPos,
+                    memoEntriesWithNewParsingContexts);
+            if (subClauseMatch == null) {
                 break;
-            } else {
-//                if (first) {
-//                    if (!suffixMatch && isFirstMatchPosition && !subClauses[0].isFirstOfRun(input, currPos)) {
-//                        // For non-suffix matches: this subclause matched in the first position of a rule,
-//                        // but was not the first of a run => no match
-//                        break;
-//                    }
-//                    first = false;
-//                }
-                matchingSubClauseMemos.add(subClauseMemo);
-                if (subClauseMemo.len == 0) {
-                    // Prevent infinite loop -- if match consumed zero characters, can only match it once
-                    // (i.e. OneOrMore(Nothing) will match exactly one Nothing)
-                    break;
-                } else {
-                    currPos += subClauseMemo.len;
-                }
             }
+            matched = true;
+            prevContext = new ParsingContext(parentMemoEntry, prevContext, subClauseMatch, /* subClauseIdx = */ 0);
+            if (subClauseMatch.len == 0) {
+                // Prevent infinite loop -- if match consumed zero characters, can only match it once
+                // (i.e. OneOrMore(Nothing) will match exactly one Nothing)
+                break;
+            }
+            currPos += subClauseMatch.len;
         }
-        return new Memo(memoRef, !matchingSubClauseMemos.isEmpty() ? currPos - memoRef.startPos : -1,
-                matchingSubClauseMemos);
+        return matched ? prevContext.getParentMatch(this) : null;
     }
 
     @Override
-    public String toStr() {
-        return subClauses[0] + "+";
+    public String toString() {
+        if (toStringCached == null) {
+            toStringCached = subClauses[0] + "+";
+        }
+        return toStringCached;
     }
 }

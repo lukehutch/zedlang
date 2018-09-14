@@ -1,7 +1,11 @@
 package pikaparser.clause;
 
-import pikaparser.memo.old.Memo;
-import pikaparser.memo.old.MemoRef;
+import java.util.Arrays;
+import java.util.Set;
+
+import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.ParsingContext;
 
 public class FollowedBy extends Clause {
 
@@ -10,15 +14,22 @@ public class FollowedBy extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
-        var subClauseMemoRef = new MemoRef(subClauses[0], memoRef.startPos);
-        var subClauseMemo = lookUpSubClauseMemo(input, memoRef, subClauseMemoRef, isFirstMatchPosition);
-        boolean matched = subClauseMemo.matched();
-        return new Memo(memoRef, matched ? 0 : -1, matched ? subClauseMemo : null);
+    public Match extendParsingContext(String input, MemoEntry parentMemoEntry,
+            ParsingContext prevSubClauseParsingContext, int startPos,
+            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+        var subClauseMatch = subClauses[0].getCurrBestMatch(input, prevSubClauseParsingContext, startPos,
+                memoEntriesWithNewParsingContexts);
+        return subClauseMatch != null
+                ? new Match(this, startPos, /* len = */ 0, /* subClauseMatches = */ Arrays.asList(subClauseMatch),
+                        /* firstMatchingSubClauseIdx = */ 0)
+                : null;
     }
 
     @Override
-    public String toStr() {
-        return "&(" + subClauses[0] + ")";
+    public String toString() {
+        if (toStringCached == null) {
+            toStringCached = "&(" + subClauses[0] + ")";
+        }
+        return toStringCached;
     }
 }

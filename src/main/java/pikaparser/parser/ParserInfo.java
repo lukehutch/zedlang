@@ -8,8 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import pikaparser.clause.Clause;
-import pikaparser.memo.old.Memo;
-import pikaparser.memo.old.MemoRef;
+import pikaparser.memotable.Match;
 
 public class ParserInfo {
 
@@ -43,16 +42,22 @@ public class ParserInfo {
             if (clause.isTerminal()) {
                 // Terminals are not memoized -- have to render them directly
                 for (int j = 0; j <= input.length(); j++) {
-                    buf[i].setCharAt(marginWidth + j,
-                            clause.match(input, new MemoRef(clause, j), true).matched() ? '#' : '.');
+                    buf[i].setCharAt(marginWidth + j, clause.extendParsingContext(input, /* unused */ null,
+                            /* unused */ null, j, /* unused */ null) != null ? '#' : '.');
                 }
             } else {
-                // Render memo table entries
-                for (var memo : clause.getNonOverlappingMatches(/* matchesOnly = */ false)) {
-                    MemoRef memoRef = memo.memoRef;
-                    if (memoRef.startPos <= input.length()) {
-                        buf[i].setCharAt(marginWidth + memoRef.startPos, memo.matched() ? '#' : '.');
-                        for (int j = memoRef.startPos + 1; j < memoRef.startPos + memo.len; j++) {
+                // Render non-matches
+                for (var ent : clause.startPosToMemoEntry.entrySet()) {
+                    var memoEntry = ent.getValue();
+                    if (memoEntry.bestMatch == null && memoEntry.startPos <= input.length()) {
+                        buf[i].setCharAt(marginWidth + memoEntry.startPos, '.');
+                    }
+                }
+                // Render matches
+                for (var match : clause.getNonOverlappingMatches()) {
+                    if (match.startPos <= input.length()) {
+                        buf[i].setCharAt(marginWidth + match.startPos, '#');
+                        for (int j = match.startPos + 1; j < match.startPos + match.len; j++) {
                             if (j <= input.length()) {
                                 buf[i].setCharAt(marginWidth + j, '=');
                             }
@@ -98,25 +103,25 @@ public class ParserInfo {
         //        }
     }
 
-    private static void printParseTree(Memo memo, String indentStr, boolean isLastChild, String input,
+    private static void printParseTree(Match match, String indentStr, boolean isLastChild, String input,
             BitSet consumedChars) {
-        for (int i = memo.memoRef.startPos, ii = memo.memoRef.startPos + memo.len; i < ii; i++) {
+        for (int i = match.startPos, ii = match.startPos + match.len; i < ii; i++) {
             consumedChars.set(i);
         }
         int inpLen = 40;
-        String inp = input.substring(memo.memoRef.startPos,
-                Math.min(input.length(), memo.memoRef.startPos + Math.min(memo.len, inpLen)));
+        String inp = input.substring(match.startPos,
+                Math.min(input.length(), match.startPos + Math.min(match.len, inpLen)));
         if (inp.length() == inpLen) {
             inp += "...";
         }
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + memo + " : \"" + inp + "\"");
-        List<Memo> matchingSubClauseMemos = memo.matchingSubClauseMemos;
-        if (matchingSubClauseMemos != null) {
-            for (int i = 0; i < matchingSubClauseMemos.size(); i++) {
-                Memo subClause = matchingSubClauseMemos.get(i);
-                printParseTree(subClause, indentStr + (isLastChild ? "    " : "|   "),
-                        i == matchingSubClauseMemos.size() - 1, input, consumedChars);
+        System.out.println(indentStr + "+-- " + match + " : \"" + inp + "\"");
+        List<Match> subClauseMatches = match.subClauseMatches;
+        if (subClauseMatches != null) {
+            for (int i = 0; i < subClauseMatches.size(); i++) {
+                Match subClauseMatch = subClauseMatches.get(i);
+                printParseTree(subClauseMatch, indentStr + (isLastChild ? "    " : "|   "),
+                        i == subClauseMatches.size() - 1, input, consumedChars);
             }
         }
     }
@@ -158,7 +163,7 @@ public class ParserInfo {
     public static void printParseResult(Parser parser) {
         // Print parse tree, and find which characters were consumed and which weren't
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
-        var topLevelMatches = parser.topLevelClause.getNonOverlappingMatches(/* matchesOnly = */ true);
+        var topLevelMatches = parser.topLevelClause.getNonOverlappingMatches();
         if (topLevelMatches.isEmpty()) {
             System.out.println("Toplevel rule did not match");
         } else {

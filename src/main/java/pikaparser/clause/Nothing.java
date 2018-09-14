@@ -1,7 +1,11 @@
 package pikaparser.clause;
 
-import pikaparser.memo.old.Memo;
-import pikaparser.memo.old.MemoRef;
+import java.util.Collections;
+import java.util.Set;
+
+import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.ParsingContext;
 
 public class Nothing extends Clause {
 
@@ -10,19 +14,24 @@ public class Nothing extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
-        return new Memo(memoRef, 0);
+    public Match extendParsingContext(String input, MemoEntry parentMemoEntryUnused,
+            ParsingContext prevSubClauseParsingContextUnused, int startPos,
+            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+        return getCurrBestMatch(input, prevSubClauseParsingContextUnused, startPos, memoEntriesWithNewParsingContexts);
     }
 
     @Override
-    public boolean isFirstOfRun(String input, int startPos) {
-        // "Nothing" always matches before current position
-        // This will mean that OneOrMore(Nothing) will never match -- have to use OneOrMoreSuffix(Nothing)
-        return false;
+    public Match getCurrBestMatch(String input, ParsingContext prevSubClauseParsingContextUnused, int startPos,
+            Set<MemoEntry> memoEntriesWithNewParsingContextsUnused) {
+        return new Match(this, startPos, /* len = */ 0, /* subClauseMatches = */ Collections.emptyList(),
+                /* firstMatchingSubClauseIdx = */ 0);
     }
 
     @Override
-    public String toStr() {
-        return "()";
+    public String toString() {
+        if (toStringCached == null) {
+            toStringCached = "()";
+        }
+        return toStringCached;
     }
 }

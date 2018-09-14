@@ -11,8 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.RuleName;
-import pikaparser.memo.old.Memo;
-import pikaparser.memo.old.MemoRef;
+import pikaparser.memotable.MemoEntry;
 
 public class Parser {
 
@@ -26,10 +25,10 @@ public class Parser {
 
     public final List<Clause> allClauses;
 
-    private static final boolean PARALLELIZE = false;
+    // TODO private static final boolean PARALLELIZE = false;
 
     private Clause internClause(Clause clause, Set<Clause> visited) {
-        String clauseStr = clause.toString();
+        var clauseStr = clause.toString();
         var alreadyInternedClause = clauseStrToClauseInterned.get(clauseStr);
         if (alreadyInternedClause != null) {
             // Rule is already interned, just add any missing rule names and return interned version
@@ -54,7 +53,7 @@ public class Parser {
 
     static void getReachableClauses(Clause clause, Set<Clause> reachable) {
         if (reachable.add(clause)) {
-            for (Clause subClause : clause.subClauses) {
+            for (var subClause : clause.subClauses) {
                 getReachableClauses(subClause, reachable);
             }
         }
@@ -68,13 +67,13 @@ public class Parser {
 
         // Intern clauses, and map rule name to clause
         Set<Clause> internClauseVisited = new HashSet<>();
-        for (Clause rule : grammar) {
+        for (var rule : grammar) {
             if (rule.ruleNames.size() == 0) {
                 throw new IllegalArgumentException("All toplevel clauses must have a single name");
             }
-            String ruleName = rule.ruleNames.iterator().next();
+            var ruleName = rule.ruleNames.iterator().next();
 
-            Clause ruleInterned = internClause(rule, internClauseVisited);
+            var ruleInterned = internClause(rule, internClauseVisited);
             if (ruleNameToClause.put(ruleName, ruleInterned) != null) {
                 throw new IllegalArgumentException("Duplicate rule name: " + ruleName);
             }
@@ -83,7 +82,7 @@ public class Parser {
         // Look up named clause for each RuleName
         var nameRedirect = new HashMap<Clause, Clause>();
         for (var ent : clauseStrToClauseInterned.entrySet()) {
-            Clause clause = ent.getValue();
+            var clause = ent.getValue();
             if (clause instanceof RuleName) {
                 // Name references can form a chain, so need to follow the chain all the way to the end
                 var visited = new HashSet<Clause>();
@@ -102,7 +101,7 @@ public class Parser {
                 } while (currClause instanceof RuleName);
 
                 // Redirect all named clauses to the final non-named clause
-                for (Clause visitedClause : visited) {
+                for (var visitedClause : visited) {
                     nameRedirect.put(visitedClause, currClause);
                     // The final clause should inherit the names of all clauses on the chain
                     currClause.ruleNames.addAll(visitedClause.ruleNames);
@@ -112,7 +111,7 @@ public class Parser {
 
         // Replace name references with direct clause references
         for (var ent : new ArrayList<>(clauseStrToClauseInterned.entrySet())) {
-            Clause clause = ent.getValue();
+            var clause = ent.getValue();
             if (nameRedirect.containsKey(clause)) {
                 clauseStrToClauseInterned.put(ent.getKey(), nameRedirect.get(clause));
             }
@@ -123,12 +122,12 @@ public class Parser {
             }
         }
         for (var ent : new ArrayList<>(ruleNameToClause.entrySet())) {
-            Clause clause = ent.getValue();
+            var clause = ent.getValue();
             if (nameRedirect.containsKey(clause)) {
                 ruleNameToClause.put(ent.getKey(), nameRedirect.get(clause));
             }
         }
-        Clause topLevelClause = grammar.get(0);
+        var topLevelClause = grammar.get(0);
         if (nameRedirect.containsKey(topLevelClause)) {
             topLevelClause = nameRedirect.get(topLevelClause);
         }
@@ -139,53 +138,71 @@ public class Parser {
         getReachableClauses(topLevelClause, reachableClausesUnique);
         allClauses = new ArrayList<Clause>(reachableClausesUnique);
 
-        // Initialize trigger clauses
-        for (Clause clause : allClauses) {
-            clause.initTriggerClauses();
+        // Initialize seed clauses
+        for (var clause : allClauses) {
+            clause.backlinkSeedSubClauses();
         }
 
-        // Seed the active set: find positions that all terminals match, and create the initial active set from
-        // their trigger clauses. N.B. need to run to (startPos == input.length()) inclusive, so that NotFollowedBy
-        // works at end of input.
-        Set<MemoRef> activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoRef, Boolean>());
-        for (int startPos = 0; startPos <= input.length(); startPos++) {
-            for (Clause clause : allClauses) {
-                // Only match terminal clauses
-                if (clause.isTerminal()) {
-                    // Try matching the terminal clause at the current position
-                    // (can throw away the returned Memo, the goal is just to populate the activeSet)
-                    // N.B. it is precisely because the returned Memo is thrown away here (and in the invocation
-                    // below) that triggers are needed to add the correct parents to the active set.
-                    clause.initTerminalParentClauses(input, startPos, activeSet);
+        // Find positions that all terminals match, and create the initial set of parsing context seeds from.
+        // N.B. need to run to (startPos == input.length()) inclusive, so that NotFollowedBy(X) and Y(Nothing)
+        // work at the end of the input.
+        var parsingContextSeedMemoEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
+        for (var clause : allClauses) {
+            if (clause.isTerminal()) {
+                for (int startPos = 0; startPos <= input.length(); startPos++) {
+                    clause.initTerminalParentSeeds(input, startPos, parsingContextSeedMemoEntries);
                 }
             }
         }
+        var memoEntriesWithNewBestMatch = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
+        var memoEntriesWithNewParsingContexts = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
+        var memoEntriesWithNewMatches = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
 
         // Main parsing loop
-        while (!activeSet.isEmpty()) {
-            ParserInfo.printParseResult(this);
+        while (!parsingContextSeedMemoEntries.isEmpty() || !memoEntriesWithNewParsingContexts.isEmpty()
+                || !memoEntriesWithNewBestMatch.isEmpty()) {
 
-            // Set<MemoRef> nextActiveSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoRef, Boolean>());
-            //            if (PARALLELIZE) {
-            //                activeSet.parallelStream().forEach(activeSetMemoRef -> {
-            //                    Clause.matchMemoized(input, activeSetMemoRef, nextActiveSet);
-            //                });
-            //            } else {
-            var newMemos = new ArrayList<Memo>(activeSet.size());
-            for (MemoRef activeSetMemoRef : activeSet) {
-                Memo match = activeSetMemoRef.clause.match(input, activeSetMemoRef, /* isFirstMatchPosition = */ true);
-                newMemos.add(match);
+            // TODO ParserInfo.printParseResult(this);
 
-                System.out.println("-> " + activeSetMemoRef + " => " + match);
+            // For all parsing context seeds, try matching the clause at the requested start position,
+            // and if it matches, add the new match to the memo table 
+            for (var parsingContextSeedMemoEntry : parsingContextSeedMemoEntries) {
+                // Find the initial match for the clause at the requested start position
+                parsingContextSeedMemoEntry.seedSubClauseParsingContext(input, memoEntriesWithNewParsingContexts,
+                        memoEntriesWithNewMatches);
             }
-            Set<MemoRef> nextActiveSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoRef, Boolean>());
-            for (var newMemo : newMemos) {
-                // TODO: don't store memo if it is the result of a sub-* clause matching Nothing?
+            parsingContextSeedMemoEntries.clear();
 
-                Clause.storeMemo(input, newMemo, nextActiveSet);
+            // -- Barrier --
+
+            // For all new bestMatch memo entries, try extending all partial matches starting at the new bestMatch 
+            for (var memoEntry : memoEntriesWithNewBestMatch) {
+                memoEntry.extendSubClauseParsingContexts(input, memoEntriesWithNewParsingContexts,
+                        memoEntriesWithNewMatches);
             }
-            //            }
-            activeSet = nextActiveSet;
+            memoEntriesWithNewBestMatch.clear();
+
+            // -- Barrier --
+
+            // Move all newParsingContexts into parsingContexts (this is done right before iterating through
+            // parsingContexts, so that parsingContexts doesn't change while iterating through it)
+            for (var memoEntry : memoEntriesWithNewParsingContexts) {
+                while (!memoEntry.newParsingContexts.isEmpty()) {
+                    memoEntry.parsingContexts.add(memoEntry.newParsingContexts.remove());
+                }
+            }
+            memoEntriesWithNewParsingContexts.clear();
+
+            // -- Barrier --
+
+            // For all MemoEntries that have new matches, check if any of the new matches is a new best match
+            for (var memoEntryWithNewMatches : memoEntriesWithNewMatches) {
+                memoEntryWithNewMatches.updateBestMatch(parsingContextSeedMemoEntries, memoEntriesWithNewBestMatch);
+            }
+            memoEntriesWithNewMatches.clear();
+
+            // -- Barrier --
+
         }
     }
 }

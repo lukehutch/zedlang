@@ -23,7 +23,7 @@ Two problems:
   - Memo entries should therefore be a partial match within a Clause, so that matching at the precise affected subclause can resume in O(1) for each clause.
   - Memo entries therefore need to keep track of the parent Memo, and for each, the partial match status (sub-clause index) up to this current Memo.
   - When partial matching resumes at the current Memo, the old partial matches from that point on can be thrown away.
-  - After partial matching has completed, the parent Memo is overwritten with the new Memo, consisting of new partial matches, triggering the next set of partial evaluations.
+  - After partial matching has completed, the parent Memo is overwritten with the new Memo, consisting of new partial matches, seeding the next set of partial evaluations.
      
 
 (2)

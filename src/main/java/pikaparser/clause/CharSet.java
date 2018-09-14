@@ -6,8 +6,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import pikaparser.memo.old.Memo;
-import pikaparser.memo.old.MemoRef;
+import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.ParsingContext;
 
 public class CharSet extends Clause {
 
@@ -66,62 +67,68 @@ public class CharSet extends Clause {
     }
 
     @Override
-    public Memo match(String input, MemoRef memoRef, boolean isFirstMatchPosition) {
-        boolean match = memoRef.startPos < input.length() && charSet.contains(input.charAt(memoRef.startPos));
-        return new Memo(memoRef, (invertMatch ? !match : match) ? 1 : -1);
+    public Match extendParsingContext(String input, MemoEntry parentMemoEntryUnused,
+            ParsingContext prevSubClauseParsingContextUnused, int startPos,
+            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+        return getCurrBestMatch(input, prevSubClauseParsingContextUnused, startPos, memoEntriesWithNewParsingContexts);
     }
 
     @Override
-    public boolean isFirstOfRun(String input, int startPos) {
-        boolean match = startPos == 0 || !charSet.contains(input.charAt(startPos - 1));
-        return invertMatch ? !match : match;
+    public Match getCurrBestMatch(String input, ParsingContext prevSubClauseParsingContextUnused, int startPos,
+            Set<MemoEntry> memoEntriesWithNewParsingContextsUnused) {
+        boolean match = startPos < input.length() && charSet.contains(input.charAt(startPos));
+        return match ? new Match(this, startPos, /* len = */ 1, /* subClauseMatches = */ Collections.emptyList(),
+                /* firstMatchingSubClauseIdx = */ 0) : null;
     }
 
     // TODO: fix the escaping
     @Override
-    public String toStr() {
-        var buf = new StringBuilder();
-        if (invertMatch) {
-            buf.append('^');
-        }
-        var charsSorted = new ArrayList<>(charSet);
-        Collections.sort(charsSorted);
-        for (int i = 0; i < charsSorted.size(); i++) {
-            char c = charsSorted.get(i);
-            if (c >= 32 && c <= 126) {
-                if (c == '^' && i == 0 && charSet.size() > 1) {
-                    // Escape '^' at beginning of non-inverted character set range
-                    buf.append('\\');
-                } else if (c == ']' && charSet.size() > 1) {
-                    // Escape ']' within char range
-                    buf.append('\\');
-                } else if (c == '\\') {
-                    buf.append("\\\\");
+    public String toString() {
+        if (toStringCached == null) {
+            var buf = new StringBuilder();
+            if (invertMatch) {
+                buf.append('^');
+            }
+            var charsSorted = new ArrayList<>(charSet);
+            Collections.sort(charsSorted);
+            for (int i = 0; i < charsSorted.size(); i++) {
+                char c = charsSorted.get(i);
+                if (c >= 32 && c <= 126) {
+                    if (c == '^' && i == 0 && charSet.size() > 1) {
+                        // Escape '^' at beginning of non-inverted character set range
+                        buf.append('\\');
+                    } else if (c == ']' && charSet.size() > 1) {
+                        // Escape ']' within char range
+                        buf.append('\\');
+                    } else if (c == '\\') {
+                        buf.append("\\\\");
+                    } else {
+                        buf.append(c);
+                    }
+                } else if (c == '\n') {
+                    buf.append("\\n");
+                } else if (c == '\r') {
+                    buf.append("\\r");
+                } else if (c == '\t') {
+                    buf.append("\\t");
                 } else {
-                    buf.append(c);
+                    buf.append("\\u" + String.format("%04x", (int) c));
                 }
-            } else if (c == '\n') {
-                buf.append("\\n");
-            } else if (c == '\r') {
-                buf.append("\\r");
-            } else if (c == '\t') {
-                buf.append("\\t");
-            } else {
-                buf.append("\\u" + String.format("%04x", (int) c));
+                int j = i + 1;
+                while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
+                    j++;
+                }
+                if (j > i + 2) {
+                    buf.append("-");
+                    i = j - 1;
+                    buf.append(charsSorted.get(i));
+                }
             }
-            int j = i + 1;
-            while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
-                j++;
-            }
-            if (j > i + 2) {
-                buf.append("-");
-                i = j - 1;
-                buf.append(charsSorted.get(i));
-            }
+            String s = buf.toString();
+            toStringCached = (!invertMatch && s.length() == 1 && s.charAt(0) >= 32 && s.charAt(0) <= 126) //
+                    ? "'" + s + "'" //
+                    : "[" + s + "]";
         }
-        String s = buf.toString();
-        return (!invertMatch && s.length() == 1 && s.charAt(0) >= 32 && s.charAt(0) <= 126) //
-                ? "'" + s + "'" //
-                : "[" + s + "]";
+        return toStringCached;
     }
 }
