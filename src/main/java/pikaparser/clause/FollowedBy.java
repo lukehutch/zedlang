@@ -6,6 +6,7 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
+import pikaparser.parser.Parser;
 
 public class FollowedBy extends Clause {
 
@@ -14,11 +15,9 @@ public class FollowedBy extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(String input, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
-        var subClauseMatch = subClauses[0].getCurrBestMatch(input, prevSubClauseParsingContext, startPos,
-                memoEntriesWithNewParsingContexts);
+    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
+            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> visited) {
+        var subClauseMatch = subClauses[0].getCurrBestMatch(parser, prevSubClauseParsingContext, startPos, visited);
         return subClauseMatch != null
                 ? new Match(this, startPos, /* len = */ 0, /* subClauseMatches = */ Arrays.asList(subClauseMatch),
                         /* firstMatchingSubClauseIdx = */ 0)

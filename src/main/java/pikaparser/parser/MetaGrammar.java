@@ -17,8 +17,12 @@ public class MetaGrammar {
         return clause.addRuleName(name);
     }
 
+    public static Clause nothing() {
+        return new Nothing();
+    }
+
     public static Clause optional(Clause clause) {
-        return new FirstMatch(clause, new Nothing());
+        return new FirstMatch(clause, nothing());
     }
 
     public static Clause zeroOrMore(Clause clause) {
@@ -90,7 +94,7 @@ public class MetaGrammar {
     public static final CharSet DIGIT = new CharSet('0', '9');
 
     public static Parser newParser(String input) {
-        return new Parser(Arrays.asList(//
+        var grammar = new Grammar(Arrays.asList(//
                 name("Grammar", //
                         seq(ws, oneOrMore(r("Rule")))), //
 
@@ -111,7 +115,8 @@ public class MetaGrammar {
                                 r("RuleName"), //
                                 r("CharSeq"), //
                                 r("CharSet"), //
-                                r("Nothing") //
+                                r("Nothing"), //
+                                oneOrMore(nothing()) //
                         )), //
 
                 name("RuleNames", //
@@ -182,9 +187,8 @@ public class MetaGrammar {
                         seq(r("Clause"), oneOrMore(seq(ws, r("Clause"))))),
 
                 name("RuleName", //
-                        r("RuleIdent"))), //
+                        r("RuleIdent"))));
 
-                input);
+        return new Parser(grammar, input);
     }
-
 }

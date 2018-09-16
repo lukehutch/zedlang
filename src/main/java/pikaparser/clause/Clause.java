@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
+import pikaparser.parser.Parser;
 
 public abstract class Clause {
 
@@ -22,6 +23,8 @@ public abstract class Clause {
 
     /** The parent clauses to seed when this clause's match memo at a given position changes. */
     public final Set<Clause> seedParentClauses = new HashSet<>();
+
+    public boolean matchTopDown;
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -36,6 +39,14 @@ public abstract class Clause {
 
     public boolean isTerminal() {
         return subClauses.length == 0;
+    }
+
+    /**
+     * If true, the clause can match Nothing, so match top-down (on demand), rather than bottom up (dramatically reduces
+     * the number of memo table entries).
+     */
+    public boolean matchTopDown() {
+        return matchTopDown;
     }
 
     /**
@@ -56,20 +67,20 @@ public abstract class Clause {
     }
 
     /** Seed parent clauses that have a terminal as the first subclause. */
-    public void initTerminalParentSeeds(String input, int startPos, Set<MemoEntry> parsingContextSeeds) {
-        var terminalMatch = getCurrBestMatch(input, /* prevSubClauseParsingContext = */ null, startPos,
-                /* memoEntriesWithNewParsingContexts not needed by terminals */ null);
+    public void initTerminalParentSeeds(Parser parser, int startPos) {
+        var terminalMatch = getCurrBestMatch(parser, /* prevSubClauseParsingContext = */ null, startPos,
+                /* visited = */ null);
         if (terminalMatch != null) {
             for (var seedParentClause : seedParentClauses) {
-                parsingContextSeeds.add(seedParentClause.getOrCreateMemoEntry(terminalMatch.startPos));
+                parser.parsingContextSeedMemoEntries.add(seedParentClause.getOrCreateMemoEntry(terminalMatch.startPos));
             }
         }
     }
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    public abstract Match extendParsingContext(String input, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> memoEntriesWithNewParsingContexts);
+    public abstract Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
+            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> visited);
 
     // TODO: override this in terminals
     /**
@@ -81,23 +92,45 @@ public abstract class Clause {
      * will never change for terminals, so the {@link ParsingContext} objects for previous subclauses don't need to be
      * stored, and therefore terminals do not need to be written into the memo table.)
      * 
-     * @param input
-     *            The input.
-     * @param prevSubClauseParsingContext
-     *            The {@link ParsingContext} of the previous subclause.
-     * @param startPos
-     *            The start position to check for a match.
      * @return A new {@link Match}, if this {@link Clause} matches at the given start position, otherwise null.
      */
-    public Match getCurrBestMatch(String input, ParsingContext prevSubClauseParsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+    public Match getCurrBestMatch(Parser parser, ParsingContext prevSubClauseParsingContext, int startPos,
+            Set<MemoEntry> visited) {
         // Get or create a MemoEntry for the start position
         var memoEntry = getOrCreateMemoEntry(startPos);
 
         // Add backref to prevSubClauseParsingContext
         if (prevSubClauseParsingContext != null) {
             memoEntry.newParsingContexts.add(prevSubClauseParsingContext);
-            memoEntriesWithNewParsingContexts.add(memoEntry);
+            parser.memoEntriesWithNewParsingContexts.add(memoEntry);
+
+            if (prevSubClauseParsingContext.parentMemoEntry.toString().equals(
+                    "Clause = (('(' WS Clause ')') | Seq | FirstMatch | OneOrMore | FollowedBy | NotFollowedBy | RuleName | CharSeq | CharSet | Nothing | ()+) : 31")) {
+                System.out.println("here");
+            }
+            System.out.println("PARENT: " + prevSubClauseParsingContext.parentMemoEntry + "\n  MEMOENTRY: " + memoEntry
+                    + "\n  PREV: " + prevSubClauseParsingContext);
+            if (memoEntry.toString().equals("(WS '|' WS Clause)+ : 6") && prevSubClauseParsingContext.toString().equals(
+                    "Clause = (('(' WS Clause ')') | Seq | FirstMatch | OneOrMore | FollowedBy | NotFollowedBy | RuleName | CharSeq | CharSet | Nothing) : 5+1 :: 0")) {
+                System.out.println("here");
+            }
+
+        }
+
+        // Re-match every time for top-down clauses
+        if (matchTopDown()) {
+            // Prevent infinite loop if performing top-down parsing (when visited != null) 
+            if (visited == null || visited.add(memoEntry)) {
+                // Perform top-down match. If there is a match, this will add it to newMatches, which will potentially
+                // update memoEntry.bestMatch in the next iteration.
+                var match = memoEntry.clause.extendParsingContext(parser, /* parentMemoEntry = */ memoEntry,
+                        /* prevSubClauseParsingContext = */ null, /* startPos = */ memoEntry.startPos,
+                        visited == null ? new HashSet<MemoEntry>() : visited);
+                if (match != null) {
+                    memoEntry.newMatches.add(match);
+                    parser.memoEntriesWithNewMatches.add(memoEntry); 
+                }
+            }
         }
 
         // Return the best match of this clause at this start position, or null if no match yet 

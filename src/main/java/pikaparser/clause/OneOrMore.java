@@ -5,6 +5,7 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
+import pikaparser.parser.Parser;
 
 public class OneOrMore extends Clause {
 
@@ -13,14 +14,14 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(String input, MemoEntry parentMemoEntry,
+    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
             ParsingContext prevSubClauseParsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+            Set<MemoEntry> visited) {
         var matched = false;
         var prevContext = prevSubClauseParsingContext;
         for (var currPos = startPos;;) {
-            var subClauseMatch = subClauses[0].getCurrBestMatch(input, prevContext, currPos,
-                    memoEntriesWithNewParsingContexts);
+            var subClauseMatch = subClauses[0].getCurrBestMatch(parser, prevContext, currPos,
+                    visited);
             if (subClauseMatch == null) {
                 break;
             }

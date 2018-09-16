@@ -9,12 +9,13 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
+import pikaparser.parser.Parser;
 
 public class CharSet extends Clause {
 
-    protected final Set<Character> charSet = new HashSet<>();
+    public final Set<Character> charSet = new HashSet<>();
 
-    protected boolean invertMatch = false;
+    public boolean invertMatch = false;
 
     private CharSet() {
         super(new Clause[0]);
@@ -67,16 +68,16 @@ public class CharSet extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(String input, MemoEntry parentMemoEntryUnused,
-            ParsingContext prevSubClauseParsingContextUnused, int startPos,
-            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
-        return getCurrBestMatch(input, prevSubClauseParsingContextUnused, startPos, memoEntriesWithNewParsingContexts);
+    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntryUnused,
+            ParsingContext prevSubClauseParsingContextUnused, int startPos, Set<MemoEntry> visited) {
+        return getCurrBestMatch(parser, prevSubClauseParsingContextUnused, startPos, visited);
     }
 
     @Override
-    public Match getCurrBestMatch(String input, ParsingContext prevSubClauseParsingContextUnused, int startPos,
-            Set<MemoEntry> memoEntriesWithNewParsingContextsUnused) {
-        boolean match = startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(startPos)));
+    public Match getCurrBestMatch(Parser parser, ParsingContext prevSubClauseParsingContextUnused, int startPos,
+            Set<MemoEntry> visited) {
+        boolean match = startPos < parser.input.length()
+                && (invertMatch ^ charSet.contains(parser.input.charAt(startPos)));
         return match ? new Match(this, startPos, /* len = */ 1, /* subClauseMatches = */ Collections.emptyList(),
                 /* firstMatchingSubClauseIdx = */ 0) : null;
     }

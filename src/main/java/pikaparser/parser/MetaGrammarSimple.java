@@ -102,7 +102,7 @@ public class MetaGrammarSimple {
         //
         //                input);
 
-        return new Parser(Arrays.asList(//
+        var grammar = new Grammar(Arrays.asList(//
                 name("Clause", //
                         first( //
                                 r("Seq"), //
@@ -111,9 +111,9 @@ public class MetaGrammarSimple {
                                 DIGIT)), //
 
                 name("Seq", //
-                        seq(r("Clause"), oneOrMore(seq(c(' '), r("Clause")))))),
-
-                input);
+                        seq(r("Clause"), oneOrMore(seq(c(' '), r("Clause")))))));
+        
+        return new Parser(grammar, input);
     }
 
 }

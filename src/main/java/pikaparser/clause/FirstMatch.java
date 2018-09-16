@@ -7,27 +7,26 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
+import pikaparser.parser.Parser;
 
 public class FirstMatch extends Clause {
 
     public FirstMatch(Clause... subClauses) {
         super(subClauses);
         if (subClauses.length < 2) {
-            throw new IllegalArgumentException("Expected 2 or more subclauses");
+            throw new IllegalArgumentException(FirstMatch.class.getSimpleName() + " expects 2 or more subclauses");
         }
     }
 
     @Override
-    public Match extendParsingContext(String input, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
+            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> visited) {
         var matched = false;
         var prevContext = prevSubClauseParsingContext;
         var startSubClauseIdx = prevContext == null ? 0 : prevContext.subClauseIdx + 1;
         for (int subClauseIdx = startSubClauseIdx; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
-            var subClauseMatch = subClause.getCurrBestMatch(input, prevContext, startPos,
-                    memoEntriesWithNewParsingContexts);
+            var subClauseMatch = subClause.getCurrBestMatch(parser, prevContext, startPos, visited);
             // Set prevContext before breaking, so that it is set to the context of the last successful match
             prevContext = new ParsingContext(parentMemoEntry, prevContext, subClauseMatch, subClauseIdx);
             if (subClauseMatch != null) {

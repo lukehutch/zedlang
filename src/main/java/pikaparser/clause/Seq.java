@@ -6,28 +6,27 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
+import pikaparser.parser.Parser;
 
 public class Seq extends Clause {
 
     public Seq(Clause... subClauses) {
         super(subClauses);
         if (subClauses.length < 2) {
-            throw new IllegalArgumentException("Expected 2 or more subclauses");
+            throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
         }
     }
 
     @Override
-    public Match extendParsingContext(String input, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewParsingContexts) {
+    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
+            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> visited) {
         var matched = true;
         var currPos = startPos;
         var prevContext = prevSubClauseParsingContext;
         var startSubClauseIdx = prevContext == null ? 0 : prevContext.subClauseIdx + 1;
         for (var subClauseIdx = startSubClauseIdx; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
-            var subClauseMatch = subClause.getCurrBestMatch(input, prevContext, currPos,
-                    memoEntriesWithNewParsingContexts);
+            var subClauseMatch = subClause.getCurrBestMatch(parser, prevContext, currPos, visited);
             if (subClauseMatch == null) {
                 matched = false;
                 break;
@@ -56,7 +55,7 @@ public class Seq extends Clause {
         }
         return buf.toString();
     }
-    
+
     @Override
     public String toString() {
         if (toStringCached == null) {

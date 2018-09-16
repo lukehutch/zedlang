@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 
 import pikaparser.clause.Clause;
@@ -12,7 +11,8 @@ import pikaparser.memotable.Match;
 
 public class ParserInfo {
 
-    private static void printMemoTable(List<Clause> clauseOrder, String input, BitSet consumedChars) {
+    private static void printMemoTable(Parser parser, List<Clause> clauseOrder, BitSet consumedChars) {
+        String input = parser.input;
         StringBuilder[] buf = new StringBuilder[clauseOrder.size()];
         int marginWidth = 0;
         for (int i = 0; i < clauseOrder.size(); i++) {
@@ -21,6 +21,9 @@ public class ParserInfo {
             Clause clause = clauseOrder.get(i);
             if (i == 0) {
                 buf[i].append("<toplevel> ");
+            }
+            if (clause.matchTopDown()) {
+                buf[i].append("<topdown> ");
             }
             if (clause.isTerminal()) {
                 buf[i].append("<terminal> ");
@@ -42,7 +45,7 @@ public class ParserInfo {
             if (clause.isTerminal()) {
                 // Terminals are not memoized -- have to render them directly
                 for (int j = 0; j <= input.length(); j++) {
-                    buf[i].setCharAt(marginWidth + j, clause.extendParsingContext(input, /* unused */ null,
+                    buf[i].setCharAt(marginWidth + j, clause.extendParsingContext(parser, /* unused */ null,
                             /* unused */ null, j, /* unused */ null) != null ? '#' : '.');
                 }
             } else {
@@ -127,15 +130,12 @@ public class ParserInfo {
         }
     }
 
-    private static ArrayList<Clause> getClauseOrder(Clause topLevelClause) {
+    private static ArrayList<Clause> getClauseOrder(List<Clause> allClauses) {
         // Find reachable clauses, then sort in order of toplevel clause, then internal clauses, then terminals 
-        var reachableClausesUnique = new HashSet<Clause>();
-        Parser.getReachableClauses(topLevelClause, reachableClausesUnique);
-        var clauseOrder = new ArrayList<Clause>();
-        clauseOrder.add(topLevelClause);
         var sortedClauses = new ArrayList<Clause>();
-        for (Clause clause : reachableClausesUnique) {
-            if (clause != topLevelClause && !clause.isTerminal()) {
+        for (int i = 1 /* skip toplevel clause */; i < allClauses.size(); i++) {
+            Clause clause = allClauses.get(i);
+            if (!clause.isTerminal()) {
                 sortedClauses.add(clause);
             }
         }
@@ -148,10 +148,13 @@ public class ParserInfo {
             }
         };
         Collections.sort(sortedClauses, comparator);
+        var clauseOrder = new ArrayList<Clause>();
+        clauseOrder.add(allClauses.get(0)); // Add toplevel clause to top of list
         clauseOrder.addAll(sortedClauses);
         sortedClauses.clear();
-        for (Clause clause : reachableClausesUnique) {
-            if (clause != topLevelClause && clause.isTerminal()) {
+        for (int i = 1; i < allClauses.size(); i++) {
+            Clause clause = allClauses.get(i);
+            if (clause.isTerminal()) {
                 sortedClauses.add(clause);
             }
         }
@@ -164,7 +167,7 @@ public class ParserInfo {
     public static void printParseResult(Parser parser) {
         // Print parse tree, and find which characters were consumed and which weren't
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
-        var topLevelMatches = parser.topLevelClause.getNonOverlappingMatches();
+        var topLevelMatches = parser.grammar.topLevelClause.getNonOverlappingMatches();
         if (topLevelMatches.isEmpty()) {
             System.out.println("Toplevel rule did not match");
         } else {
@@ -176,6 +179,6 @@ public class ParserInfo {
 
         // Print memo table
         System.out.println();
-        printMemoTable(getClauseOrder(parser.topLevelClause), parser.input, consumedChars);
+        printMemoTable(parser, getClauseOrder(parser.grammar.allClauses), consumedChars);
     }
 }
