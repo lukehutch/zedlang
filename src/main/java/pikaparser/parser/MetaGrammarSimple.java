@@ -47,7 +47,7 @@ public class MetaGrammarSimple {
         return new CharSet(chr);
     }
 
-    public static Clause text(String str) {
+    public static Clause str(String str) {
         return new CharSeq(str, false);
     }
 
@@ -57,62 +57,64 @@ public class MetaGrammarSimple {
 
     public static final CharSet DIGIT = new CharSet('0', '9');
 
+    public static final CharSet LETTER_OR_DIGIT = new CharSet(LETTER, DIGIT);
+
     public static Parser newParser(String input) {
-        //        return new Parser(Arrays.asList(//
-        //                name("Grammar", //
-        //                        seq(ws, oneOrMore(r("Rule")))), //
-        //
-        //                name("WS", //
-        //                        optional(oneOrMore(WHITESPACE))), //
-        //
-        //                name("Rule", //
-        //                        seq(r("RuleIdent"), ws, c('='), ws, r("Clause"), ws, c(';'), ws)), //
-        //
-        //                name("Clause", //
-        //                        first( //
-        //                                r("Seq"), //
-        //                                r("RuleName"), //
-        //                                DIGIT)), //
-        //
-        ////                name("Clause", //
-        ////                        first( //
-        ////                                r("Nothing"), //
-        ////                                seq(c('('), ws, r("Clause"), c(')')), //
-        ////                                r("FirstMatch"), //
-        ////                                r("Seq"), //
-        ////                                r("RuleName"), //
-        ////                                DIGIT)), //
-        //
-        //                name("RuleIdent", //
-        //                        oneOrMore(r("RuleIdentChar"))), //
-        //
-        //                name("RuleIdentChar", new CharSet(LETTER, DIGIT, new CharSet("_-."))),
-        //
-        //                name("FirstMatch", //
-        //                        seq(r("Clause"), oneOrMore(seq(ws, c('|'), ws, r("Clause"))))),
-        //
-        //                name("Nothing", //
-        //                        seq(c('('), ws, c(')'))),
-        //
-        //                name("Seq", //
-        //                        seq(r("Clause"), oneOrMore(seq(ws, r("Clause"))))),
-        //
-        //                name("RuleName", //
-        //                        r("RuleIdent"))), //
-        //
-        //                input);
 
         var grammar = new Grammar(Arrays.asList(//
                 name("Clause", //
-                        first( //
-                                r("Seq"), //
-                                seq(c('('), r("Clause"), c(')')), //
-                                LETTER, //
-                                DIGIT)), //
+                        r("P5l")),
 
-                name("Seq", //
-                        seq(r("Clause"), oneOrMore(seq(c(' '), r("Clause")))))));
-        
+                name("P5l", //
+                        first( //
+                                r("P5"), //
+                                r("P4l") //
+                        )), //
+
+                name("P4l", //
+                        first( //
+                                r("P4"), //
+                                r("P3l") //
+                        )), //
+
+                name("P3l", //
+                        first( //
+                                r("P3"), //
+                                r("P2l") //
+                        )), //
+
+                name("P2l", //
+                        first( //
+                                r("P2"), //
+                                r("P1l") //
+                        )), //
+
+                name("P1l", //
+                        first( //
+                                r("P1"), //
+                                r("P0") //
+                        )), //
+
+                name("P5", //
+                        seq(r("P5l"), str(" + "), r("P4l"))),
+
+                name("P4", //
+                        seq(r("P4l"), str(" - "), r("P3l"))),
+
+                name("P3", //
+                        seq(r("P3l"), str(" * "), r("P2l"))),
+
+                name("P2", //
+                        seq(r("P2l"), str(" / "), r("P1l"))),
+
+                name("P1", //
+                        seq(c('('), r("P5l"), c(')'))),
+
+                name("P0", //
+                        LETTER_OR_DIGIT)
+
+        ));
+
         return new Parser(grammar, input);
     }
 

@@ -1,12 +1,12 @@
 package pikaparser.clause;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
-import pikaparser.parser.Parser;
 
 public class Seq extends Clause {
 
@@ -18,42 +18,65 @@ public class Seq extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> visited) {
-        var matched = true;
-        var currPos = startPos;
-        var prevContext = prevSubClauseParsingContext;
-        var startSubClauseIdx = prevContext == null ? 0 : prevContext.subClauseIdx + 1;
-        for (var subClauseIdx = startSubClauseIdx; subClauseIdx < subClauses.length; subClauseIdx++) {
-            var subClause = subClauses[subClauseIdx];
-            var subClauseMatch = subClause.getCurrBestMatch(parser, prevContext, currPos, visited);
-            if (subClauseMatch == null) {
-                matched = false;
-                break;
+    public Match match(String input, ParsingContext parsingContext, int startPos,
+            Set<MemoEntry> memoEntriesWithNewBestMatch) {
+        boolean isParsingContextRoot = this == parsingContext.parentMemoEntry.clause
+                && startPos == parsingContext.parentMemoEntry.startPos;
+        if (isParsingContextRoot) {
+            // This is the root of a ParsingContext --  need to extend match from current ParsingContext
+            var matched = true;
+            var currContext = parsingContext;
+            var resumeSubClauseIdx = currContext.subClauseIdx;
+            var resumeStartPos = parsingContext.subClauseMatchNode != null
+                    ? parsingContext.subClauseMatchNode.match.startPos + parsingContext.subClauseMatchNode.match.len
+                    : startPos;
+            for (int subClauseIdx = resumeSubClauseIdx, currStartPos = resumeStartPos; //
+                    subClauseIdx < subClauses.length; subClauseIdx++) {
+                var subClause = subClauses[subClauseIdx];
+                var subClauseMatch = subClause.match(input, currContext, currStartPos, memoEntriesWithNewBestMatch);
+                if (subClauseMatch == null) {
+                    matched = false;
+                    break;
+                }
+                currStartPos += subClauseMatch.len;
+                currContext = new ParsingContext(currContext, subClauseMatch, subClauseIdx + 1);
             }
-            prevContext = new ParsingContext(parentMemoEntry, prevContext, subClauseMatch, subClauseIdx);
-            currPos += subClauseMatch.len;
-        }
-        Match match = matched ? prevContext.getParentMatch(this) : null;
-        if (matched && this.toString().equals("(Clause (WS '|' WS Clause)+)")) {
-            System.out.println();
-            System.out.println("** " + this + "\n" + toStr(match, 0));
-        }
-        return match;
-    }
+            if (matched) {
+                var match = currContext.getParentMatch();
+                parsingContext.parentMemoEntry.newMatches.add(match);
+                memoEntriesWithNewBestMatch.add(parsingContext.parentMemoEntry);
+                return match;
+            }
+            return null;
 
-    private static String toStr(Match match, int depth) {
-        StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < depth * 2 + 2; i++) {
-            buf.append(" ");
+        } else if (matchTopDown) {
+            var subClauseMatches = (List<Match>) null;
+            var currStartPos = startPos;
+            for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
+                var subClause = subClauses[subClauseIdx];
+                var subClauseMatch = subClause.match(input, parsingContext, startPos, memoEntriesWithNewBestMatch);
+                if (subClauseMatch == null) {
+                    break;
+                }
+                if (subClauseMatches == null) {
+                    subClauseMatches = new ArrayList<>(subClauses.length);
+                }
+                subClauseMatches.add(subClauseMatch);
+                currStartPos += subClauseMatch.len;
+            }
+            var match = subClauseMatches != null
+                    ? new Match(this, startPos, currStartPos - startPos, subClauseMatches, 0)
+                    : null;
+
+            if (match != null && matchTopDown) {
+                // Store memo (even though it is not needed) for debugging purposes -- TODO remove this?
+                getOrCreateMemoEntry(startPos).bestMatch = match;
+            }
+            return match;
+
+        } else {
+            return lookUpBestMatch(parsingContext, startPos);
         }
-        buf.append(match + "\n");
-        List<Match> subClauseMatches = match.subClauseMatches;
-        for (int i = 0; i < subClauseMatches.size(); i++) {
-            Match scm = subClauseMatches.get(i);
-            buf.append(toStr(scm, depth + 1));
-        }
-        return buf.toString();
     }
 
     @Override

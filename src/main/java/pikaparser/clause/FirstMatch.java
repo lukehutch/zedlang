@@ -7,7 +7,6 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
-import pikaparser.parser.Parser;
 
 public class FirstMatch extends Clause {
 
@@ -19,22 +18,55 @@ public class FirstMatch extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> visited) {
-        var matched = false;
-        var prevContext = prevSubClauseParsingContext;
-        var startSubClauseIdx = prevContext == null ? 0 : prevContext.subClauseIdx + 1;
-        for (int subClauseIdx = startSubClauseIdx; subClauseIdx < subClauses.length; subClauseIdx++) {
-            var subClause = subClauses[subClauseIdx];
-            var subClauseMatch = subClause.getCurrBestMatch(parser, prevContext, startPos, visited);
-            // Set prevContext before breaking, so that it is set to the context of the last successful match
-            prevContext = new ParsingContext(parentMemoEntry, prevContext, subClauseMatch, subClauseIdx);
-            if (subClauseMatch != null) {
-                matched = true;
-                break;
+    public Match match(String input, ParsingContext parsingContext, int startPos,
+            Set<MemoEntry> memoEntriesWithNewBestMatch) {
+        boolean isParsingContextRoot = this == parsingContext.parentMemoEntry.clause
+                && startPos == parsingContext.parentMemoEntry.startPos;
+        if (isParsingContextRoot) {
+            // This is the root of a ParsingContext --  need to extend match from current ParsingContext
+            var matched = false;
+            var currContext = parsingContext;
+            for (int subClauseIdx = currContext.subClauseIdx; subClauseIdx < subClauses.length; subClauseIdx++) {
+                var subClause = subClauses[subClauseIdx];
+                var subClauseMatch = subClause.match(input, currContext, startPos, memoEntriesWithNewBestMatch);
+                currContext = new ParsingContext(currContext, subClauseMatch, subClauseIdx + 1);
+                if (subClauseMatch != null) {
+                    matched = true;
+                    break;
+                }
             }
+            if (matched) {
+                var match = currContext.getParentMatch();
+                parsingContext.parentMemoEntry.newMatches.add(match);
+                memoEntriesWithNewBestMatch.add(parsingContext.parentMemoEntry);
+                return match;
+            }
+            return null;
+
+        } else if (matchTopDown) {
+            var subClauseMatch = (Match) null;
+            var matchingSubClauseIdx = -1;
+            for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
+                var subClause = subClauses[subClauseIdx];
+                subClauseMatch = subClause.match(input, parsingContext, startPos, memoEntriesWithNewBestMatch);
+                if (subClauseMatch != null) {
+                    matchingSubClauseIdx = subClauseIdx;
+                    break;
+                }
+            }
+            var match = subClauseMatch != null
+                    ? new Match(this, startPos, subClauseMatch.len, Arrays.asList(subClauseMatch), matchingSubClauseIdx)
+                    : null;
+
+            if (match != null && matchTopDown) {
+                // Store memo (even though it is not needed) for debugging purposes -- TODO remove this?
+                getOrCreateMemoEntry(startPos).bestMatch = match;
+            }
+            return match;
+
+        } else {
+            return lookUpBestMatch(parsingContext, startPos);
         }
-        return matched ? prevContext.getParentMatch(this) : null;
     }
 
     @Override

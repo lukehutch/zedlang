@@ -6,27 +6,19 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
-import pikaparser.parser.Parser;
 
-public class Nothing extends Clause {
+public class Nothing extends Terminal {
 
     public static final String NOTHING_STR = "()";
 
     public Nothing() {
-        super(new Clause[0]);
+        super();
     }
 
     @Override
-    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntryUnused,
-            ParsingContext prevSubClauseParsingContextUnused, int startPos, Set<MemoEntry> visited) {
-        return getCurrBestMatch(parser, prevSubClauseParsingContextUnused, startPos, visited);
-    }
-
-    @Override
-    public Match getCurrBestMatch(Parser parser, ParsingContext prevSubClauseParsingContextUnused, int startPos,
-            Set<MemoEntry> visited) {
-        return new Match(this, startPos, /* len = */ 0, /* subClauseMatches = */ Collections.emptyList(),
-                /* firstMatchingSubClauseIdx = */ 0);
+    public Match match(String input, ParsingContext parsingContextIgnored, int startPos,
+            Set<MemoEntry> memoEntriesWithNewBestMatchIgnored) {
+        return new Match(this, startPos, 0, Collections.emptyList(), 0);
     }
 
     @Override

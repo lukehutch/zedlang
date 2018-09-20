@@ -10,11 +10,16 @@ import pikaparser.clause.Nothing;
 import pikaparser.clause.OneOrMore;
 import pikaparser.clause.RuleName;
 import pikaparser.clause.Seq;
+import pikaparser.clause.Start;
 
 public class MetaGrammar {
 
     public static Clause name(String name, Clause clause) {
         return clause.addRuleName(name);
+    }
+
+    public static Clause start() {
+        return new Start();
     }
 
     public static Clause nothing() {
@@ -96,7 +101,7 @@ public class MetaGrammar {
     public static Parser newParser(String input) {
         var grammar = new Grammar(Arrays.asList(//
                 name("Grammar", //
-                        seq(ws, oneOrMore(r("Rule")))), //
+                        seq(start(), ws, oneOrMore(r("Rule")))), //
 
                 name("WS", //
                         optional(oneOrMore(WHITESPACE))), //
@@ -108,15 +113,14 @@ public class MetaGrammar {
                         first( //
                                 seq(c('('), ws, r("Clause"), c(')')), //
                                 r("Seq"), //
-                                r("FirstMatch"), //
                                 r("OneOrMore"), //
+                                r("FirstMatch"), //
                                 r("FollowedBy"), //
                                 r("NotFollowedBy"), //
                                 r("RuleName"), //
                                 r("CharSeq"), //
                                 r("CharSet"), //
-                                r("Nothing"), //
-                                oneOrMore(nothing()) //
+                                r("Nothing") //
                         )), //
 
                 name("RuleNames", //

@@ -5,7 +5,6 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
-import pikaparser.parser.Parser;
 
 public class RuleName extends Clause {
 
@@ -17,8 +16,8 @@ public class RuleName extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos, Set<MemoEntry> visited) {
+    public Match match(String input, ParsingContext parsingContext, int startPos,
+            Set<MemoEntry> memoEntriesWithNewBestMatch) {
         throw new IllegalArgumentException(RuleName.class.getSimpleName() + " should not be part of final grammar");
     }
 

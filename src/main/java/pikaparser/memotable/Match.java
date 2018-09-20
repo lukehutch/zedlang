@@ -1,5 +1,6 @@
 package pikaparser.memotable;
 
+import java.util.BitSet;
 import java.util.List;
 
 import pikaparser.clause.Clause;
@@ -45,31 +46,70 @@ public class Match implements Comparable<Match> {
             // Fast path to stop recursive comparison when subclause matches are identical
             return 0;
         }
-        // If this is a FirstMatch clause, then a smaller matching subclause index beats a larger index
-        // (a smaller firstMatchingSubClauseIdx index wins over a larger firstMatchingSubClauseIdx)
-        int diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
-        if (diff0 != 0) {
-            return diff0;
-        }
-        // Compare subclause matches (this finds FirstMatch subclauses that match with an earlier sub-subclause index)
-        for (int i = 0, ii = Math.min(this.subClauseMatches.size(), o.subClauseMatches.size()); i < ii; i++) {
-            int diff1 = this.subClauseMatches.get(i).compareTo(o.subClauseMatches.get(i));
-            if (diff1 != 0) {
-                return diff1;
-            }
-        }
-        // Compare number of matching subclauses (more matching subclauses wins over fewer, e.g. for OneOrMore)
-        int diff2 = o.subClauseMatches.size() - this.subClauseMatches.size();
+        
+        // TODO: build operator precedence and associativity into this comparison function
+        
+//        // If this is a FirstMatch clause, then a smaller matching subclause index beats a larger index
+//        // (a smaller firstMatchingSubClauseIdx index wins over a larger firstMatchingSubClauseIdx)
+//        int diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
+//        if (diff0 != 0) {
+//            return diff0;
+//        }
+//        // Compare number of matching subclauses (more matching subclauses wins over fewer, e.g. for OneOrMore)
+//        int diff1 = o.subClauseMatches.size() - this.subClauseMatches.size();
+//        if (diff1 != 0) {
+//            return diff1;
+//        }
+        // A longer overall match wins over a shorter match 
+        int diff2 = o.len - this.len;
         if (diff2 != 0) {
             return diff2;
         }
-        // Otherwise, a longer overall match wins over a shorter match (should never reach this test) 
-        int diff3 = o.len - this.len;
-        return diff3;
+        // Compare subclause matches (this finds FirstMatch subclauses that match with an earlier sub-subclause index)
+        for (int i = 0, ii = Math.min(this.subClauseMatches.size(), o.subClauseMatches.size()); i < ii; i++) {
+            int diff3 = this.subClauseMatches.get(i).compareTo(o.subClauseMatches.get(i));
+            if (diff3 != 0) {
+                return diff3;
+            }
+        }
+        return 0;
+    }
+
+    public void printParseTree(String input, String indentStr, boolean isLastChild) {
+        int inpLen = 40;
+        String inp = input.substring(startPos, Math.min(input.length(), startPos + Math.min(len, inpLen)));
+        if (inp.length() == inpLen) {
+            inp += "...";
+        }
+        inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
+        System.out.println(indentStr + "|   ");
+        System.out.println(indentStr + "+-- " + clause.toStringWithRuleNames() + " : " + startPos + "+" + len + " \""
+                + inp + "\"");
+        if (subClauseMatches != null) {
+            for (int i = 0; i < subClauseMatches.size(); i++) {
+                Match subClauseMatch = subClauseMatches.get(i);
+                subClauseMatch.printParseTree(input, indentStr + (isLastChild ? "    " : "|   "),
+                        i == subClauseMatches.size() - 1);
+            }
+        }
+    }
+
+    public void printParseTree(String input) {
+        printParseTree(input, "", true);
     }
 
     @Override
     public String toString() {
-        return clause.toStringWithRuleNames() + " : " + startPos + "+" + len;
+        StringBuilder buf = new StringBuilder();
+        buf.append(clause.toStringWithRuleNames() + " : " + startPos + "+" + len + " => [ ");
+        for (int i = 0; i < subClauseMatches.size(); i++) {
+            var s = subClauseMatches.get(i);
+            if (i > 0) {
+                buf.append(" ; ");
+            }
+            buf.append(s.toString());
+        }
+        buf.append(" ]");
+        return buf.toString();
     }
 }

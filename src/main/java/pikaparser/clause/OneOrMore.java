@@ -1,11 +1,12 @@
 package pikaparser.clause;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
-import pikaparser.parser.Parser;
 
 public class OneOrMore extends Clause {
 
@@ -14,27 +15,46 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntry,
-            ParsingContext prevSubClauseParsingContext, int startPos,
-            Set<MemoEntry> visited) {
-        var matched = false;
-        var prevContext = prevSubClauseParsingContext;
-        for (var currPos = startPos;;) {
-            var subClauseMatch = subClauses[0].getCurrBestMatch(parser, prevContext, currPos,
-                    visited);
-            if (subClauseMatch == null) {
-                break;
+    public Match match(String input, ParsingContext parsingContext, int startPos,
+            Set<MemoEntry> memoEntriesWithNewBestMatch) {
+        boolean isParsingContextRoot = this == parsingContext.parentMemoEntry.clause
+                && startPos == parsingContext.parentMemoEntry.startPos;
+        if (isParsingContextRoot) {
+            throw new RuntimeException(getClass().getSimpleName() + " cannot be a parsing context root");
+
+        } else if (matchTopDown) {
+            var subClauseMatches = (List<Match>) null;
+            var currStartPos = startPos;
+            for (;;) {
+                var subClauseMatch = subClauses[0].match(input, parsingContext, currStartPos,
+                        memoEntriesWithNewBestMatch);
+                if (subClauseMatch == null) {
+                    break;
+                }
+                if (subClauseMatches == null) {
+                    subClauseMatches = new ArrayList<>(subClauses.length);
+                }
+                subClauseMatches.add(subClauseMatch);
+                if (subClauseMatch.len == 0) {
+                    // Prevent infinite loop -- if match consumed zero characters, can only match it once
+                    // (i.e. OneOrMore(Nothing) will match exactly one Nothing)
+                    break;
+                }
+                currStartPos += subClauseMatch.len;
             }
-            matched = true;
-            prevContext = new ParsingContext(parentMemoEntry, prevContext, subClauseMatch, /* subClauseIdx = */ 0);
-            if (subClauseMatch.len == 0) {
-                // Prevent infinite loop -- if match consumed zero characters, can only match it once
-                // (i.e. OneOrMore(Nothing) will match exactly one Nothing)
-                break;
+            var match = subClauseMatches != null
+                    ? new Match(this, startPos, currStartPos - startPos, subClauseMatches, 0)
+                    : null;
+
+            if (match != null && matchTopDown) {
+                // Store memo (even though it is not needed) for debugging purposes -- TODO remove this?
+                getOrCreateMemoEntry(startPos).bestMatch = match;
             }
-            currPos += subClauseMatch.len;
+            return match;
+
+        } else {
+            return lookUpBestMatch(parsingContext, startPos);
         }
-        return matched ? prevContext.getParentMatch(this) : null;
     }
 
     @Override

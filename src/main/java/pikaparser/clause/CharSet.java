@@ -9,53 +9,48 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
-import pikaparser.parser.Parser;
 
-public class CharSet extends Clause {
+public class CharSet extends Terminal {
 
     public final Set<Character> charSet = new HashSet<>();
 
     public boolean invertMatch = false;
 
-    private CharSet() {
-        super(new Clause[0]);
-    }
-
     public CharSet(char c) {
-        super(new Clause[0]);
+        super();
         this.charSet.add(c);
     }
 
     public CharSet(String chars) {
-        super(new Clause[0]);
+        super();
         for (int i = 0; i < chars.length(); i++) {
             this.charSet.add(chars.charAt(i));
         }
     }
 
     public CharSet(char[] chars) {
-        super(new Clause[0]);
+        super();
         for (int i = 0; i < chars.length; i++) {
             this.charSet.add(chars[i]);
         }
     }
 
     public CharSet(char minChar, char maxChar) {
-        super(new Clause[0]);
+        super();
         for (char c = minChar; c <= maxChar; c++) {
             this.charSet.add(c);
         }
     }
 
     public CharSet(CharSet... charSets) {
-        super(new Clause[0]);
+        super();
         for (CharSet charSet : charSets) {
             this.charSet.addAll(charSet.charSet);
         }
     }
 
     public CharSet(Collection<CharSet> charSets) {
-        super(new Clause[0]);
+        super();
         for (CharSet charSet : charSets) {
             this.charSet.addAll(charSet.charSet);
         }
@@ -68,18 +63,11 @@ public class CharSet extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntryUnused,
-            ParsingContext prevSubClauseParsingContextUnused, int startPos, Set<MemoEntry> visited) {
-        return getCurrBestMatch(parser, prevSubClauseParsingContextUnused, startPos, visited);
-    }
-
-    @Override
-    public Match getCurrBestMatch(Parser parser, ParsingContext prevSubClauseParsingContextUnused, int startPos,
-            Set<MemoEntry> visited) {
-        boolean match = startPos < parser.input.length()
-                && (invertMatch ^ charSet.contains(parser.input.charAt(startPos)));
-        return match ? new Match(this, startPos, /* len = */ 1, /* subClauseMatches = */ Collections.emptyList(),
-                /* firstMatchingSubClauseIdx = */ 0) : null;
+    public Match match(String input, ParsingContext parsingContextIgnored, int startPos,
+            Set<MemoEntry> memoEntriesWithNewBestMatchIgnored) {
+        return startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(startPos)))
+                ? new Match(this, startPos, 1, Collections.emptyList(), 0)
+                : null;
     }
 
     // TODO: fix the escaping

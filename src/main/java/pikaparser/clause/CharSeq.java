@@ -6,9 +6,8 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.ParsingContext;
-import pikaparser.parser.Parser;
 
-public class CharSeq extends Clause {
+public class CharSeq extends Terminal {
 
     public final String str;
     public final boolean ignoreCase;
@@ -20,18 +19,12 @@ public class CharSeq extends Clause {
     }
 
     @Override
-    public Match extendParsingContext(Parser parser, MemoEntry parentMemoEntryUnused,
-            ParsingContext prevSubClauseParsingContextUnused, int startPos, Set<MemoEntry> visited) {
-        return getCurrBestMatch(parser, prevSubClauseParsingContextUnused, startPos, visited);
-    }
-
-    @Override
-    public Match getCurrBestMatch(Parser parser, ParsingContext prevSubClauseParsingContextUnused, int startPos,
-            Set<MemoEntry> visited) {
-        boolean match = startPos < parser.input.length() - str.length()
-                && parser.input.regionMatches(ignoreCase, startPos, str, 0, str.length());
-        return match ? new Match(this, startPos, str.length(), /* subClauseMatches = */ Collections.emptyList(),
-                /* firstMatchingSubClauseIdx = */ 0) : null;
+    public Match match(String input, ParsingContext parsingContextIgnored, int startPos,
+            Set<MemoEntry> memoEntriesWithNewBestMatchIgnored) {
+        return startPos < input.length() - str.length()
+                && input.regionMatches(ignoreCase, startPos, str, 0, str.length())
+                        ? new Match(this, startPos, str.length(), Collections.emptyList(), 0)
+                        : null;
     }
 
     @Override
