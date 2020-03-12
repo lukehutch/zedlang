@@ -15,6 +15,7 @@ import pikaparser.memotable.ParsingContext;
 public abstract class Clause {
 
     public final Set<String> ruleNames = new HashSet<>();
+    public String label;
     public final Clause[] subClauses;
 
     /** A map from startPos to {@link MemoEntry} for this clause. */
@@ -30,8 +31,12 @@ public abstract class Clause {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    public Clause(Clause... subClauses) {
+    protected Clause(Clause... subClauses) {
         this.subClauses = subClauses;
+    }
+
+    public void setLabel(String clauseLabel) {
+        this.label = clauseLabel;
     }
 
     public Clause addRuleName(String ruleName) {
@@ -90,10 +95,11 @@ public abstract class Clause {
         var memoEntry = getOrCreateMemoEntry(startPos);
         // TODO: don't add backref if this is the first sub-clause to avoid duplication? (Duplication is removed by using a set currently)
         memoEntry.backrefs.add(parsingContext);
-        System.out.println("    Looking up: " + memoEntry + " at " + startPos + " ## " + memoEntry.bestMatch + " ## " + parsingContext);
+        System.out.println("    Looking up: " + memoEntry + " at " + startPos + " ## " + memoEntry.bestMatch + " ## "
+                + parsingContext);
         return memoEntry.bestMatch;
     }
-    
+
     /**
      * Get the existing {@link MemoEntry} for this clause at the requested start position, or create and return a new
      * {@link MemoEntry} if one did not exist.

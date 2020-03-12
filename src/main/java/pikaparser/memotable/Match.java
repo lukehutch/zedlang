@@ -1,9 +1,9 @@
 package pikaparser.memotable;
 
-import java.util.BitSet;
 import java.util.List;
 
 import pikaparser.clause.Clause;
+import pikaparser.clause.FirstMatch;
 
 /** A complete match of a {@link Clause} at a given start position. */
 public class Match implements Comparable<Match> {
@@ -46,20 +46,20 @@ public class Match implements Comparable<Match> {
             // Fast path to stop recursive comparison when subclause matches are identical
             return 0;
         }
-        
+
         // TODO: build operator precedence and associativity into this comparison function
-        
-//        // If this is a FirstMatch clause, then a smaller matching subclause index beats a larger index
-//        // (a smaller firstMatchingSubClauseIdx index wins over a larger firstMatchingSubClauseIdx)
-//        int diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
-//        if (diff0 != 0) {
-//            return diff0;
-//        }
-//        // Compare number of matching subclauses (more matching subclauses wins over fewer, e.g. for OneOrMore)
-//        int diff1 = o.subClauseMatches.size() - this.subClauseMatches.size();
-//        if (diff1 != 0) {
-//            return diff1;
-//        }
+
+        //        // If this is a FirstMatch clause, then a smaller matching subclause index beats a larger index
+        //        // (a smaller firstMatchingSubClauseIdx index wins over a larger firstMatchingSubClauseIdx)
+        //        int diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
+        //        if (diff0 != 0) {
+        //            return diff0;
+        //        }
+        //        // Compare number of matching subclauses (more matching subclauses wins over fewer, e.g. for OneOrMore)
+        //        int diff1 = o.subClauseMatches.size() - this.subClauseMatches.size();
+        //        if (diff1 != 0) {
+        //            return diff1;
+        //        }
         // A longer overall match wins over a shorter match 
         int diff2 = o.len - this.len;
         if (diff2 != 0) {
@@ -75,8 +75,34 @@ public class Match implements Comparable<Match> {
         return 0;
     }
 
+    public String getText(String input) {
+        return input.substring(startPos, len);
+    }
+
+    private void toAST(ASTNode parent, String input) {
+        ASTNode currParent = parent;
+        if (clause.label != null) {
+            // Labeled nodes become nodes of the final AST
+            var newASTNode = new ASTNode(clause.label, clause, startPos, len);
+            parent.addChild(newASTNode);
+            currParent = newASTNode;
+        }
+        // Recurse to descendants
+        for (int i = 0; i < subClauseMatches.size(); i++) {
+            // var subClauseIdx = (clause instanceof OneOrMore ? 0 : i) + firstMatchingSubClauseIdx;
+            var subClauseMatch = subClauseMatches.get(i);
+            subClauseMatch.toAST(currParent, input);
+        }
+    }
+
+    public ASTNode toAST(String input) {
+        ASTNode root = new ASTNode("<root>", clause, startPos, len);
+        toAST(root, input);
+        return root;
+    }
+
     public void printParseTree(String input, String indentStr, boolean isLastChild) {
-        int inpLen = 40;
+        int inpLen = 80;
         String inp = input.substring(startPos, Math.min(input.length(), startPos + Math.min(len, inpLen)));
         if (inp.length() == inpLen) {
             inp += "...";
@@ -87,7 +113,7 @@ public class Match implements Comparable<Match> {
                 + inp + "\"");
         if (subClauseMatches != null) {
             for (int i = 0; i < subClauseMatches.size(); i++) {
-                Match subClauseMatch = subClauseMatches.get(i);
+                var subClauseMatch = subClauseMatches.get(i);
                 subClauseMatch.printParseTree(input, indentStr + (isLastChild ? "    " : "|   "),
                         i == subClauseMatches.size() - 1);
             }

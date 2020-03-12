@@ -65,13 +65,13 @@ public class Grammar {
 
         // Intern clauses, and map rule name to clause
         Set<Clause> internClauseVisited = new HashSet<>();
-        for (var rule : grammar) {
-            if (rule.ruleNames.size() == 0) {
+        for (var clause : grammar) {
+            if (clause.ruleNames.size() == 0) {
                 throw new IllegalArgumentException("All toplevel clauses must have a single name");
             }
-            var ruleName = rule.ruleNames.iterator().next();
+            var ruleName = clause.ruleNames.iterator().next();
 
-            var ruleInterned = internClause(rule, internClauseVisited);
+            var ruleInterned = internClause(clause, internClauseVisited);
             if (ruleNameToClause.put(ruleName, ruleInterned) != null) {
                 throw new IllegalArgumentException("Duplicate rule name: " + ruleName);
             }
@@ -199,5 +199,4 @@ public class Grammar {
             clause.findSeedAncestorClauses(clause, new HashSet<Clause>());
         }
     }
-
 }

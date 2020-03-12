@@ -22,7 +22,7 @@ public class Parser {
 
         var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<ParsingContext, Boolean>());
 
-        // Find positions that all terminals match, and create the initial set of parsing context seeds from.
+        // Find positions that all terminals match, and create the initial set of parsing context seeds from these.
         for (var clause : grammar.allClauses) {
             if (clause instanceof Start //
                     || (clause instanceof Terminal //
@@ -64,7 +64,7 @@ public class Parser {
         }
 
         ParserInfo.printParseResult(this);
-
+        
         //        // TODO: This won't work if the parsing stops more than one level down from the toplevel match
         //        // If toplevel clause requires top-down matching, run toplevel match
         //        if (grammar.topLevelClause.matchTopDown()) {

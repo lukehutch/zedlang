@@ -1,6 +1,9 @@
-package pikaparser.memotable;
+package attic;
 
 import java.util.ArrayList;
+
+import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoEntry;
 
 /** The context for an incomplete subclause match that referenced a given memo entry. */
 public class ParsingContext {

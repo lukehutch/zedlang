@@ -17,6 +17,10 @@ public class Seq extends Clause {
         }
     }
 
+    public Seq(List<Clause> subClauses) {
+        this(subClauses.toArray(new Clause[0]));
+    }
+
     @Override
     public Match match(String input, ParsingContext parsingContext, int startPos,
             Set<MemoEntry> memoEntriesWithNewBestMatch) {

@@ -13,8 +13,14 @@ import pikaparser.clause.Seq;
 
 public class MetaGrammarSimple {
 
-    public static Clause name(String name, Clause clause) {
-        return clause.addRuleName(name);
+    public static Clause rule(String name, Clause clause) {
+        clause.addRuleName(name);
+        return clause;
+    }
+
+    public static Clause ast(String astLabel, Clause clause) {
+        clause.setLabel(astLabel);
+        return clause;
     }
 
     public static Clause optional(Clause clause) {
@@ -62,55 +68,58 @@ public class MetaGrammarSimple {
     public static Parser newParser(String input) {
 
         var grammar = new Grammar(Arrays.asList(//
-                name("Clause", //
+                rule("Clause", //
                         r("P5l")),
 
-                name("P5l", //
+                rule("P5l", //
                         first( //
                                 r("P5"), //
                                 r("P4l") //
                         )), //
 
-                name("P4l", //
+                rule("P4l", //
                         first( //
                                 r("P4"), //
                                 r("P3l") //
                         )), //
 
-                name("P3l", //
+                rule("P3l", //
                         first( //
                                 r("P3"), //
                                 r("P2l") //
                         )), //
 
-                name("P2l", //
+                rule("P2l", //
                         first( //
                                 r("P2"), //
                                 r("P1l") //
                         )), //
 
-                name("P1l", //
+                rule("P1l", //
                         first( //
                                 r("P1"), //
-                                r("P0") //
+                                ast("SYM", r("P0")) //
                         )), //
 
-                name("P5", //
-                        seq(r("P5l"), str(" + "), r("P4l"))),
+                rule("P5", //
+                        seq(r("P5l"), first(ast("PLUS", str(" + ")), ast("MINUS", str(" - "))), r("P4l"))),
 
-                name("P4", //
-                        seq(r("P4l"), str(" - "), r("P3l"))),
+                rule("P4", //
+                        seq(r("P4l"), str(" $ "), r("P3l"))),
 
-                name("P3", //
-                        seq(r("P3l"), str(" * "), r("P2l"))),
+                rule("P3", //
+                        seq(r("P3l"), first(ast("MUL", str(" * ")), ast("DIV", str(" / "))), r("P2l"))),
 
-                name("P2", //
-                        seq(r("P2l"), str(" / "), r("P1l"))),
+                rule("P2", //
+                        seq(r("P2l"), str(" # "), r("P1l"))),
 
-                name("P1", //
-                        seq(c('('), r("P5l"), c(')'))),
+                rule("P1", //
+                        first( //
+                                seq(ast("UNARYMINUS", str(" - ")), r("P1l")), // 
+                                seq(c('('), r("P5l"), c(')'))) //
+                ),
 
-                name("P0", //
+                rule("P0", //
                         LETTER_OR_DIGIT)
 
         ));

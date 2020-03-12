@@ -95,7 +95,7 @@ public class ParserInfo {
         for (int j = 0; j < marginWidth; j++) {
             System.out.print(' ');
         }
-        System.out.println(input.replace('\n', '^'));
+        System.out.println(input.replace('\n', '⏎'));
         for (int j = 0; j < marginWidth; j++) {
             System.out.print(' ');
         }
@@ -165,6 +165,10 @@ public class ParserInfo {
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
                 topLevelMatch.printParseTree(parser.input, "", i == topLevelMatches.size() - 1);
+                var ast = topLevelMatch.toAST(parser.input);
+                if (ast != null) {
+                    ast.printParseTree(parser.input);
+                }
                 getConsumedChars(topLevelMatch, consumedChars);
             }
         }
