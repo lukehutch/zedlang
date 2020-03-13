@@ -8,6 +8,7 @@ import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
 import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoEntry;
 
 public class ParserInfo {
 
@@ -58,13 +59,13 @@ public class ParserInfo {
             if (clause instanceof Terminal) {
                 // Terminals are not memoized -- have to render them directly
                 for (int j = 0; j <= input.length(); j++) {
-                    Match match = clause.getOrCreateMemoEntry(j).match(input);
+                    Match match = new MemoEntry(clause, j).match(input);
                     if (match != null) {
                         buf[i].setCharAt(marginWidth + j, '#');
                         for (int k = 1; k < match.len; k++) {
                             buf[i].setCharAt(marginWidth + j + k, '=');
                         }
-                        j += match.len;
+                        j += match.len - 1;
                     }
                 }
             } else {

@@ -38,12 +38,12 @@ public class Test {
             // String grammarStr = "a + b + c - d - e + f + g - h - i + j - k";
             // String grammarStr = "a + b + c * d - e - ((x + y) + (p + f) + g) + h - i / j / k";
             // String grammarStr = "a + b - c + d - e -  - x - y";
-            String grammarStr = "x=^a^c;";
+            String grammarStr = "x=x:yz";
 
             // Parser parser = MetaGrammarSimple.newParser(grammarStr);
             Parser parser = new Parser(new Grammar(Arrays.asList( //
-                    rule("Rule1", seq(str("x="), oneOrMore(r("Rule2")), c(';'))), //
-                    rule("Rule2", seq(optional(c('^')), new CharSet('a', 'z'))) //
+                    rule("Rule1", seq(r("Name"), c(':'), r("Name"))), //
+                    rule("Name", oneOrMore(new CharSet('a', 'z'))) //
                     )), grammarStr);
 
             ParserInfo.printParseResult(parser);
