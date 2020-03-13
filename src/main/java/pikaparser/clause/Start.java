@@ -21,7 +21,8 @@ public class Start extends Terminal {
 
     @Override
     public Match match(MemoEntry memoEntry, String input) {
-        return memoEntry.startPos == 0 ? new Match(this, 0) : null;
+        // Match zero characters, and only at beginning of input
+        return memoEntry.startPos == 0 ? new Match(this, memoEntry.startPos, 0) : null;
     }
 
     @Override
