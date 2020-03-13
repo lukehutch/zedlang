@@ -1,20 +1,14 @@
 package pikaparser.parser;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import pikaparser.clause.Clause;
-import pikaparser.clause.Nothing;
-import pikaparser.clause.OneOrMore;
 import pikaparser.clause.RuleName;
-import pikaparser.clause.Seq;
-import pikaparser.clause.Terminal;
 
 public class Grammar {
 
@@ -50,11 +44,13 @@ public class Grammar {
         return clause;
     }
 
-    static void getReachableClauses(Clause clause, Set<Clause> reachable) {
-        if (reachable.add(clause)) {
+    /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
+    private static void findReachableClauses(Clause clause, Set<Clause> visited, List<Clause> revTopoOrderOut) {
+        if (visited.add(clause)) {
             for (var subClause : clause.subClauses) {
-                getReachableClauses(subClause, reachable);
+                findReachableClauses(subClause, visited, revTopoOrderOut);
             }
+            revTopoOrderOut.add(clause);
         }
     }
 
@@ -131,72 +127,19 @@ public class Grammar {
         }
         this.topLevelClause = topLevelClause;
 
-        // Find reachable clauses 
-        var reachableClausesUnique = new LinkedHashSet<Clause>();
-        getReachableClauses(topLevelClause, reachableClausesUnique);
-        allClauses = new ArrayList<Clause>(reachableClausesUnique);
+        // Find clauses reachable from the toplevel clause, and set alwaysMatches field on each clause, bottom-up 
+        allClauses = new ArrayList<Clause>();
+        findReachableClauses(topLevelClause, new HashSet<Clause>(), allClauses);
 
-        // Find seed parent clauses
+        // Find clauses that always match zero or more characters, e.g. FirstMatch(X | Nothing).
+        // allClauses is in reverse topological order, i.e. bottom-up
+        for (Clause clause : allClauses) {
+            clause.testWhetherAlwaysMatches();
+        }
+
+        // Find seed parent clauses (in the case of Seq, this depends upon alwaysMatches being set in the prev step)
         for (var clause : allClauses) {
             clause.backlinkToSeedParentClauses();
-        }
-
-        // Find all clauses that can match Nothing, i.e. Nothing itself, or FirstMatch(X | Nothing), etc.,
-        // and set their canMatchNothing field to true
-        var nothing = (Clause) null;
-        for (var clause : allClauses) {
-            if (clause instanceof Nothing) {
-                nothing = clause;
-                // Should only be one instance, since clauses were interned
-                break;
-            }
-        }
-        if (nothing != null) {
-            var allTopDownClauses = new HashSet<Clause>();
-            var topDownClauseQueue = new ArrayDeque<Clause>();
-            topDownClauseQueue.add(nothing);
-            do {
-                // All parents of clauses that can match Nothing, except for Seq, can also match Nothing
-                while (!topDownClauseQueue.isEmpty()) {
-                    var topDownClause = topDownClauseQueue.remove();
-                    if (allTopDownClauses.add(topDownClause)) {
-                        topDownClause.matchTopDown = true;
-                        for (var parentClause : topDownClause.seedParentClauses) {
-                            if (!(parentClause instanceof Seq)) {
-                                topDownClauseQueue.add(parentClause);
-                            }
-                        }
-                    }
-                }
-                // Seq clauses can match Nothing if all their sub-clauses can match Nothing
-                for (var clause : allClauses) {
-                    if (clause instanceof Seq && !allTopDownClauses.contains(clause)) {
-                        var seqCanMatchNothing = true;
-                        for (Clause subClause : clause.subClauses) {
-                            if (!subClause.matchTopDown) {
-                                seqCanMatchNothing = false;
-                            }
-                        }
-                        if (seqCanMatchNothing) {
-                            topDownClauseQueue.add(clause);
-                        }
-                    }
-                }
-            } while (!topDownClauseQueue.isEmpty());
-        }
-        for (var clause : allClauses) {
-            if (clause instanceof OneOrMore) {
-                // Match all OneOrMore clauses top-down, to avoid creating memo entries at each match in a run
-                clause.matchTopDown = true;
-            } else if (clause instanceof Terminal) {
-                // Match all terminals top-down, since they are not memoized
-                clause.matchTopDown = true;
-            }
-        }
-
-        // Find ancestral seed clauses by skipping over top-down clauses
-        for (var clause : allClauses) {
-            clause.findSeedAncestorClauses(clause, new HashSet<Clause>());
         }
     }
 }

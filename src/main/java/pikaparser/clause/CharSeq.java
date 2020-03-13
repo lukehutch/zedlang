@@ -1,11 +1,7 @@
 package pikaparser.clause;
 
-import java.util.Collections;
-import java.util.Set;
-
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public class CharSeq extends Terminal {
 
@@ -19,11 +15,10 @@ public class CharSeq extends Terminal {
     }
 
     @Override
-    public Match match(String input, ParsingContext parsingContextIgnored, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatchIgnored) {
-        return startPos < input.length() - str.length()
-                && input.regionMatches(ignoreCase, startPos, str, 0, str.length())
-                        ? new Match(this, startPos, str.length(), Collections.emptyList(), 0)
+    public Match match(MemoEntry memoEntry, String input) {
+        return memoEntry.startPos < input.length() - str.length()
+                && input.regionMatches(ignoreCase, memoEntry.startPos, str, 0, str.length())
+                        ? new Match(this, memoEntry.startPos, str.length())
                         : null;
     }
 

@@ -1,5 +1,7 @@
 package pikaparser.memotable;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import pikaparser.clause.Clause;
@@ -26,12 +28,32 @@ public class Match implements Comparable<Match> {
      */
     public int firstMatchingSubClauseIdx;
 
-    public Match(Clause clause, int startPos, int len, List<Match> subClauseMatches, int firstMatchingSubClauseIdx) {
+    public Match(Clause clause, int firstMatchingSubClauseIdx, Match... subClauseMatches) {
         this.clause = clause;
+        this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
+        this.startPos = subClauseMatches[0].startPos;
+        for (Match subClauseMatch : subClauseMatches) {
+            this.len += subClauseMatch.len;
+        }
+        this.subClauseMatches = Arrays.asList(subClauseMatches);
+    }
+
+    public Match(Clause clause, int firstMatchingSubClauseIdx, List<Match> subClauseMatches) {
+        this.clause = clause;
+        this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
+        this.startPos = subClauseMatches.get(0).startPos;
+        for (Match subClauseMatch : subClauseMatches) {
+            this.len += subClauseMatch.len;
+        }
+        this.subClauseMatches = subClauseMatches;
+    }
+
+    public Match(Clause clause, int startPos, int len) {
+        this.clause = clause;
+        this.firstMatchingSubClauseIdx = 0;
         this.startPos = startPos;
         this.len = len;
-        this.subClauseMatches = subClauseMatches;
-        this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
+        this.subClauseMatches = Collections.emptyList();
     }
 
     /**
@@ -60,19 +82,37 @@ public class Match implements Comparable<Match> {
         //        if (diff1 != 0) {
         //            return diff1;
         //        }
-        // A longer overall match wins over a shorter match 
+
+        // An earlier subclause match in a FirstMatch clause wins over a later match
+        int diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
+        if (diff0 != 0) {
+            return diff0;
+        }
+
+        // A longer overall match (i.e. a match that spans more characters in the input) wins over a shorter match
+        // (but need to ensure this at the subclause level -- ensure that every subclause in the longer match is
+        // the same length as or longer than every subclause in the shorter match).
+        for (int i = 0, ii = Math.min(this.subClauseMatches.size(), o.subClauseMatches.size()); i < ii; i++) {
+            int diff1 = o.subClauseMatches.get(i).len - this.subClauseMatches.get(i).len;
+            if (diff1 != 0) {
+                return diff1;
+            }
+        }
         int diff2 = o.len - this.len;
         if (diff2 != 0) {
             return diff2;
         }
-        // Compare subclause matches (this finds FirstMatch subclauses that match with an earlier sub-subclause index)
+
+        // Recursively compare subclause matches (do this as a last resort to try to avoid O(N) scaling)
         for (int i = 0, ii = Math.min(this.subClauseMatches.size(), o.subClauseMatches.size()); i < ii; i++) {
             int diff3 = this.subClauseMatches.get(i).compareTo(o.subClauseMatches.get(i));
             if (diff3 != 0) {
                 return diff3;
             }
         }
-        return 0;
+
+        // A longer list of subclause matches wins over a shorter list of subclause matches
+        return this.subClauseMatches.size() - o.subClauseMatches.size();
     }
 
     public String getText(String input) {

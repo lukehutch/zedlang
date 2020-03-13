@@ -2,11 +2,9 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public class Seq extends Clause {
 
@@ -22,65 +20,52 @@ public class Seq extends Clause {
     }
 
     @Override
-    public Match match(String input, ParsingContext parsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatch) {
-        boolean isParsingContextRoot = this == parsingContext.parentMemoEntry.clause
-                && startPos == parsingContext.parentMemoEntry.startPos;
-        if (isParsingContextRoot) {
-            // This is the root of a ParsingContext --  need to extend match from current ParsingContext
-            var matched = true;
-            var currContext = parsingContext;
-            var resumeSubClauseIdx = currContext.subClauseIdx;
-            var resumeStartPos = parsingContext.subClauseMatchNode != null
-                    ? parsingContext.subClauseMatchNode.match.startPos + parsingContext.subClauseMatchNode.match.len
-                    : startPos;
-            for (int subClauseIdx = resumeSubClauseIdx, currStartPos = resumeStartPos; //
-                    subClauseIdx < subClauses.length; subClauseIdx++) {
-                var subClause = subClauses[subClauseIdx];
-                var subClauseMatch = subClause.match(input, currContext, currStartPos, memoEntriesWithNewBestMatch);
-                if (subClauseMatch == null) {
-                    matched = false;
-                    break;
-                }
-                currStartPos += subClauseMatch.len;
-                currContext = new ParsingContext(currContext, subClauseMatch, subClauseIdx + 1);
+    public void testWhetherAlwaysMatches() {
+        // For Seq, all subclauses must always match for the whole clause to always match
+        alwaysMatches = true;
+        for (Clause subClause : subClauses) {
+            if (!subClause.alwaysMatches) {
+                alwaysMatches = false;
+                break;
             }
-            if (matched) {
-                var match = currContext.getParentMatch();
-                parsingContext.parentMemoEntry.newMatches.add(match);
-                memoEntriesWithNewBestMatch.add(parsingContext.parentMemoEntry);
-                return match;
-            }
-            return null;
-
-        } else if (matchTopDown) {
-            var subClauseMatches = (List<Match>) null;
-            var currStartPos = startPos;
-            for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
-                var subClause = subClauses[subClauseIdx];
-                var subClauseMatch = subClause.match(input, parsingContext, startPos, memoEntriesWithNewBestMatch);
-                if (subClauseMatch == null) {
-                    break;
-                }
-                if (subClauseMatches == null) {
-                    subClauseMatches = new ArrayList<>(subClauses.length);
-                }
-                subClauseMatches.add(subClauseMatch);
-                currStartPos += subClauseMatch.len;
-            }
-            var match = subClauseMatches != null
-                    ? new Match(this, startPos, currStartPos - startPos, subClauseMatches, 0)
-                    : null;
-
-            if (match != null && matchTopDown) {
-                // Store memo (even though it is not needed) for debugging purposes -- TODO remove this?
-                getOrCreateMemoEntry(startPos).bestMatch = match;
-            }
-            return match;
-
-        } else {
-            return lookUpBestMatch(parsingContext, startPos);
         }
+    }
+
+    @Override
+    public List<Clause> getSeedSubClauses() {
+        // Any sub-clause up to and including the first clause that doesn't always match could be the matching clause
+        List<Clause> seedSubClauses = new ArrayList<>(subClauses.length);
+        for (int i = 0; i < subClauses.length; i++) {
+            seedSubClauses.add(subClauses[i]);
+            if (!subClauses[i].alwaysMatches) {
+                break;
+            }
+        }
+        return seedSubClauses;
+    }
+
+    @Override
+    public Match match(MemoEntry memoEntry, String input) {
+        var subClauseMatches = (List<Match>) null;
+        var currStartPos = memoEntry.startPos;
+        for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
+            var subClause = subClauses[subClauseIdx];
+            var subClauseMatch = subClause.lookUpBestMatch(/* parentMemoEntry = */ memoEntry,
+                    /* subClauseStartPos = */ currStartPos, input);
+            if (subClauseMatch == null) {
+                return null;
+            }
+            if (subClauseMatches == null) {
+                subClauseMatches = new ArrayList<>(subClauses.length);
+            }
+            subClauseMatches.add(subClauseMatch);
+            currStartPos += subClauseMatch.len;
+        }
+        if (subClauseMatches == null) {
+            // Should not happen, because Seq constructor requires at least 2 subclauses
+            throw new IllegalArgumentException("No subclauses");
+        }
+        return new Match(this, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches);
     }
 
     @Override

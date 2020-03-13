@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public abstract class Clause {
 
@@ -19,15 +18,15 @@ public abstract class Clause {
     public final Clause[] subClauses;
 
     /** A map from startPos to {@link MemoEntry} for this clause. */
-    public final ConcurrentSkipListMap<Integer, MemoEntry> startPosToMemoEntry = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<Integer, MemoEntry> startPosToMemoEntry = new ConcurrentSkipListMap<>();
 
     /** The parent clauses to seed when this clause's match memo at a given position changes. */
     public final Set<Clause> seedParentClauses = new HashSet<>();
 
-    /** The bottom-up ancestral clauses to seed when a bottom-up clause's match memo at a given position changes. */
-    public final Set<Clause> seedAncestorClauses = new HashSet<>();
+    /** If true, the clause can match Nothing. */
+    public boolean alwaysMatches;
 
-    public boolean matchTopDown;
+    protected String toStringCached;
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -42,14 +41,6 @@ public abstract class Clause {
     public Clause addRuleName(String ruleName) {
         this.ruleNames.add(ruleName);
         return this;
-    }
-
-    /**
-     * If true, the clause can match Nothing, so match top-down (on demand), rather than bottom up (dramatically reduces
-     * the number of memo table entries).
-     */
-    public boolean matchTopDown() { // TODO: this has the same name as the recursive matching function
-        return matchTopDown;
     }
 
     /**
@@ -69,44 +60,24 @@ public abstract class Clause {
         }
     }
 
-    public void findSeedAncestorClauses(Clause descendant, HashSet<Clause> visited) {
-        if (visited.add(this)) {
-            if (!matchTopDown && this != descendant) {
-                // Stop recursing at bottom-up clauses
-                descendant.seedAncestorClauses.add(this);
-            } else {
-                // For top-down clauses, keep recursing to ancestors
-                for (Clause parent : seedParentClauses) {
-                    parent.findSeedAncestorClauses(descendant, visited);
-                }
-            }
-        } else {
-            throw new RuntimeException("Found cycle in grammar: " + visited); // TODO
-        }
-    }
-
     // -----------------------------------------------------------------------------------------------------------------
 
-    public abstract Match match(String input, ParsingContext parsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatch);
-
-    public Match lookUpBestMatch(ParsingContext parsingContext, int startPos) {
-        // Reached a bottom-up clause -- return the best match in the memo table and stop recursing
-        var memoEntry = getOrCreateMemoEntry(startPos);
-        // TODO: don't add backref if this is the first sub-clause to avoid duplication? (Duplication is removed by using a set currently)
-        memoEntry.backrefs.add(parsingContext);
-        System.out.println("    Looking up: " + memoEntry + " at " + startPos + " ## " + memoEntry.bestMatch + " ## "
-                + parsingContext);
-        return memoEntry.bestMatch;
+    /**
+     * Sets {@link #alwaysMatches} to true if this clause always matches at any input position. Overridden in
+     * subclasses.
+     */
+    public void testWhetherAlwaysMatches() {
     }
+
+    public abstract Match match(MemoEntry memoEntry, String input);
 
     /**
      * Get the existing {@link MemoEntry} for this clause at the requested start position, or create and return a new
-     * {@link MemoEntry} if one did not exist.
+     * empty {@link MemoEntry} if one did not exist.
      * 
      * @param startPos
      *            The start position to check for a match.
-     * @return The existing {@link MemoEntry} for this clause at the requested start position, or a new
+     * @return The existing {@link MemoEntry} for this clause at the requested start position, or a new empty
      *         {@link MemoEntry} if one did not exist.
      */
     public MemoEntry getOrCreateMemoEntry(int startPos) {
@@ -122,6 +93,20 @@ public abstract class Clause {
             }
         }
         return memoEntry;
+    }
+
+    // Overridden in Terminal for top-down matches
+    public Match lookUpBestMatch(MemoEntry parentMemoEntry, int subClauseStartPos, String input) {
+        // Reached a bottom-up clause -- return the best match in the memo table and stop recursing
+        var memoEntry = getOrCreateMemoEntry(subClauseStartPos);
+
+        // TODO: don't add backref if this is the first sub-clause to avoid duplication? (Duplication is removed by using a set currently)
+        memoEntry.backrefs.add(parentMemoEntry);
+        //        System.out.println("    Looking up: " + memoEntry + " at " + subClauseStartPos + " ## " + memoEntry.bestMatch
+        //                + " ## " + parentMemoEntry);
+
+        // Return current best match for memo (may be null) 
+        return memoEntry.bestMatch;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -155,6 +140,27 @@ public abstract class Clause {
         return nonoverlappingMatches;
     }
 
+    /**
+     * Get the {@link Match} entries for all postions where a match was queried, but there was no match.
+     */
+    public List<Integer> getNonMatches() {
+        var firstEntry = startPosToMemoEntry.firstEntry();
+        var nonMatches = new ArrayList<Integer>();
+        if (firstEntry != null) {
+            // If there was at least one memo entry
+            for (var ent = firstEntry; ent != null;) {
+                var startPos = ent.getKey();
+                var memoEntry = ent.getValue();
+                if (memoEntry.bestMatch == null) {
+                    nonMatches.add(startPos);
+                }
+                // Move to next MemoEntry
+                ent = startPosToMemoEntry.higherEntry(startPos);
+            }
+        }
+        return nonMatches;
+    }
+
     // -----------------------------------------------------------------------------------------------------------------
 
     /** The hashCode compares only the string representation of sub-clauses, not rule names. */
@@ -173,8 +179,6 @@ public abstract class Clause {
         }
         return this.toString().equals(o.toString());
     }
-
-    public String toStringCached;
 
     public String toStringWithRuleNames() {
         if (ruleNames.isEmpty()) {

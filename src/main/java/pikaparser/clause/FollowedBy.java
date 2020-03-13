@@ -1,11 +1,7 @@
 package pikaparser.clause;
 
-import java.util.Arrays;
-import java.util.Set;
-
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public class FollowedBy extends Clause {
 
@@ -14,40 +10,18 @@ public class FollowedBy extends Clause {
     }
 
     @Override
-    public Match match(String input, ParsingContext parsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatch) {
-
-        boolean isParsingContextRoot = this == parsingContext.parentMemoEntry.clause
-                && startPos == parsingContext.parentMemoEntry.startPos;
-        if (isParsingContextRoot) {
-            // This is the root of a ParsingContext --  need to extend match from current ParsingContext
-            var subClauseMatch = subClauses[0].match(input, parsingContext, startPos, memoEntriesWithNewBestMatch);
-            var match = subClauseMatch != null
-                    ? new Match(this, startPos, /* len = */ 0, /* subClauseMatches = */ Arrays.asList(subClauseMatch),
-                            /* firstMatchingSubClauseIdx = */ 0)
-                    : null;
-            if (match != null) {
-                parsingContext.parentMemoEntry.newMatches.add(match);
-                memoEntriesWithNewBestMatch.add(parsingContext.parentMemoEntry);
-            }
-            return match;
-
-        } else if (matchTopDown) {
-            var subClauseMatch = subClauses[0].match(input, parsingContext, startPos, memoEntriesWithNewBestMatch);
-            var match = subClauseMatch != null
-                    ? new Match(this, startPos, /* len = */ 0, /* subClauseMatches = */ Arrays.asList(subClauseMatch),
-                            /* firstMatchingSubClauseIdx = */ 0)
-                    : null;
-
-            if (match != null && matchTopDown) {
-                // Store memo (even though it is not needed) for debugging purposes -- TODO remove this?
-                getOrCreateMemoEntry(startPos).bestMatch = match;
-            }
-            return match;
-
-        } else {
-            return lookUpBestMatch(parsingContext, startPos);
+    public void testWhetherAlwaysMatches() {
+        if (subClauses[0].alwaysMatches) {
+            alwaysMatches = true;
         }
+    }
+
+    @Override
+    public Match match(MemoEntry memoEntry, String input) {
+        var subClauseMatch = subClauses[0].lookUpBestMatch(/* parentMemoEntry = */ memoEntry,
+                /* subClauseStartPos = */ memoEntry.startPos, input);
+        // Replace any valid subclause match with a zero-char-consuming match
+        return subClauseMatch == null ? null : new Match(this, memoEntry.startPos, /* len = */ 0);
     }
 
     @Override

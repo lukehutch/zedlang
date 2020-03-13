@@ -2,11 +2,9 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public class OneOrMore extends Clause {
 
@@ -15,46 +13,35 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    public Match match(String input, ParsingContext parsingContext, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatch) {
-        boolean isParsingContextRoot = this == parsingContext.parentMemoEntry.clause
-                && startPos == parsingContext.parentMemoEntry.startPos;
-        if (isParsingContextRoot) {
-            throw new RuntimeException(getClass().getSimpleName() + " cannot be a parsing context root");
-
-        } else if (matchTopDown) {
-            var subClauseMatches = (List<Match>) null;
-            var currStartPos = startPos;
-            for (;;) {
-                var subClauseMatch = subClauses[0].match(input, parsingContext, currStartPos,
-                        memoEntriesWithNewBestMatch);
-                if (subClauseMatch == null) {
-                    break;
-                }
-                if (subClauseMatches == null) {
-                    subClauseMatches = new ArrayList<>(subClauses.length);
-                }
-                subClauseMatches.add(subClauseMatch);
-                if (subClauseMatch.len == 0) {
-                    // Prevent infinite loop -- if match consumed zero characters, can only match it once
-                    // (i.e. OneOrMore(Nothing) will match exactly one Nothing)
-                    break;
-                }
-                currStartPos += subClauseMatch.len;
-            }
-            var match = subClauseMatches != null
-                    ? new Match(this, startPos, currStartPos - startPos, subClauseMatches, 0)
-                    : null;
-
-            if (match != null && matchTopDown) {
-                // Store memo (even though it is not needed) for debugging purposes -- TODO remove this?
-                getOrCreateMemoEntry(startPos).bestMatch = match;
-            }
-            return match;
-
-        } else {
-            return lookUpBestMatch(parsingContext, startPos);
+    public void testWhetherAlwaysMatches() {
+        if (subClauses[0].alwaysMatches) {
+            alwaysMatches = true;
         }
+    }
+
+    @Override
+    public Match match(MemoEntry memoEntry, String input) {
+        var subClause = subClauses[0];
+        var subClauseMatches = (List<Match>) null;
+        var currStartPos = memoEntry.startPos;
+        for (;;) {
+            var subClauseMatch = subClause.lookUpBestMatch(/* parentMemoEntry = */ memoEntry,
+                    /* subClauseStartPos = */ currStartPos, input);
+            if (subClauseMatch == null) {
+                break;
+            }
+            if (subClauseMatches == null) {
+                subClauseMatches = new ArrayList<>();
+            }
+            subClauseMatches.add(subClauseMatch);
+            if (subClauseMatch.len == 0) {
+                // Prevent infinite loop -- if match consumed zero characters, can only match it once
+                // (i.e. OneOrMore(Nothing) will match exactly one Nothing)
+                break;
+            }
+            currStartPos += subClauseMatch.len;
+        }
+        return subClauseMatches != null ? new Match(this, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches) : null;
     }
 
     @Override

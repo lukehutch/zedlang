@@ -1,11 +1,7 @@
 package pikaparser.clause;
 
-import java.util.Collections;
-import java.util.Set;
-
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public class Nothing extends Terminal {
 
@@ -16,9 +12,13 @@ public class Nothing extends Terminal {
     }
 
     @Override
-    public Match match(String input, ParsingContext parsingContextIgnored, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatchIgnored) {
-        return new Match(this, startPos, 0, Collections.emptyList(), 0);
+    public void testWhetherAlwaysMatches() {
+        alwaysMatches = true;
+    }
+
+    @Override
+    public Match match(MemoEntry memoEntry, String input) {
+        return new Match(this, 0, 0);
     }
 
     @Override

@@ -2,11 +2,10 @@ package pikaparser.parser;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 import pikaparser.clause.Clause;
+import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
 import pikaparser.memotable.Match;
 
@@ -33,14 +32,14 @@ public class ParserInfo {
             buf[i] = new StringBuilder();
             buf[i].append(String.format("%3d", i) + " : ");
             Clause clause = clauseOrder.get(i);
-            if (i == 0) {
+            if (clause == parser.grammar.topLevelClause) {
                 buf[i].append("<toplevel> ");
-            }
-            if (clause.matchTopDown()) {
-                buf[i].append("<topdown> ");
             }
             if (clause instanceof Terminal) {
                 buf[i].append("<terminal> ");
+            }
+            if (clause.alwaysMatches) {
+                buf[i].append("<alwaysMatches> ");
             }
             buf[i].append(clause.toStringWithRuleNames());
             marginWidth = Math.max(marginWidth, buf[i].length() + 2);
@@ -59,15 +58,20 @@ public class ParserInfo {
             if (clause instanceof Terminal) {
                 // Terminals are not memoized -- have to render them directly
                 for (int j = 0; j <= input.length(); j++) {
-                    buf[i].setCharAt(marginWidth + j,
-                            clause.match(parser.input, /* ignored */ null, j, /* ignored */ null) != null ? '#' : '.');
+                    Match match = clause.getOrCreateMemoEntry(j).match(input);
+                    if (match != null) {
+                        buf[i].setCharAt(marginWidth + j, '#');
+                        for (int k = 1; k < match.len; k++) {
+                            buf[i].setCharAt(marginWidth + j + k, '=');
+                        }
+                        j += match.len;
+                    }
                 }
             } else {
                 // Render non-matches
-                for (var ent : clause.startPosToMemoEntry.entrySet()) {
-                    var memoEntry = ent.getValue();
-                    if (memoEntry.bestMatch == null && memoEntry.startPos <= input.length()) {
-                        buf[i].setCharAt(marginWidth + memoEntry.startPos, '.');
+                for (var startPos : clause.getNonMatches()) {
+                    if (startPos <= input.length()) {
+                        buf[i].setCharAt(marginWidth + startPos, 'x');
                     }
                 }
                 // Render matches
@@ -120,61 +124,55 @@ public class ParserInfo {
         //        }
     }
 
-    private static ArrayList<Clause> getClauseOrder(List<Clause> allClauses) {
-        // Find reachable clauses, then sort in order of toplevel clause, then internal clauses, then terminals 
-        var sortedClauses = new ArrayList<Clause>();
-        for (int i = 1 /* skip toplevel clause */; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(i);
-            if (!(clause instanceof Terminal)) {
-                sortedClauses.add(clause);
-            }
-        }
-        Comparator<? super Clause> comparator = (t1, t2) -> {
-            int diff = t1.toStringWithRuleNames().compareTo(t2.toStringWithRuleNames());
-            if (diff != 0) {
-                return diff;
-            } else {
-                return t1.toString().compareTo(t2.toString());
-            }
-        };
-        Collections.sort(sortedClauses, comparator);
-        var clauseOrder = new ArrayList<Clause>();
-        clauseOrder.add(allClauses.get(0)); // Add toplevel clause to top of list
-        clauseOrder.addAll(sortedClauses);
-        sortedClauses.clear();
-        for (int i = 1; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(i);
-            if (clause instanceof Terminal) {
-                sortedClauses.add(clause);
-            }
-        }
-        Collections.sort(sortedClauses, comparator);
-        clauseOrder.addAll(sortedClauses);
-        sortedClauses.clear();
-        return clauseOrder;
-    }
-
     public static void printParseResult(Parser parser) {
         // Print parse tree, and find which characters were consumed and which weren't
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
 
         var topLevelMatches = parser.grammar.topLevelClause.getNonOverlappingMatches();
         if (topLevelMatches.isEmpty()) {
-            System.out.println("Toplevel rule did not match");
+            System.out.println("\nToplevel rule did not match");
         } else {
+            System.out.println("\nFinal toplevel matches:");
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
                 topLevelMatch.printParseTree(parser.input, "", i == topLevelMatches.size() - 1);
+            }
+
+            System.out.println(""
+                    + "\nFinal AST:");
+            for (int i = 0; i < topLevelMatches.size(); i++) {
+                var topLevelMatch = topLevelMatches.get(i);
                 var ast = topLevelMatch.toAST(parser.input);
                 if (ast != null) {
                     ast.printParseTree(parser.input);
                 }
+            }
+
+            for (int i = 0; i < topLevelMatches.size(); i++) {
+                var topLevelMatch = topLevelMatches.get(i);
                 getConsumedChars(topLevelMatch, consumedChars);
+            }
+        }
+
+        // Find reachable clauses, by reversing topological order of clauses, and putting terminals last 
+        var sortedClauses = new ArrayList<Clause>();
+        List<Clause> allClauses = parser.grammar.allClauses;
+        for (int i = 0; i < allClauses.size(); i++) {
+            Clause clause = allClauses.get(allClauses.size() - 1 - i);
+            if (!(clause instanceof Terminal)) {
+                // Don't include terminals in clause list
+                sortedClauses.add(clause);
+            }
+        }
+        for (int i = 0; i < allClauses.size(); i++) {
+            Clause clause = allClauses.get(i);
+            if (clause instanceof Terminal && !(clause instanceof Nothing)) {
+                sortedClauses.add(clause);
             }
         }
 
         // Print memo table
         System.out.println();
-        printMemoTable(parser, getClauseOrder(parser.grammar.allClauses), consumedChars);
+        printMemoTable(parser, sortedClauses, consumedChars);
     }
 }

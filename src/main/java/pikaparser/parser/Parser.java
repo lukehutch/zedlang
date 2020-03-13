@@ -5,10 +5,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
-import pikaparser.clause.Start;
 import pikaparser.clause.Terminal;
+import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public class Parser {
 
@@ -16,62 +15,64 @@ public class Parser {
 
     public Grammar grammar;
 
+    private static final boolean PARALLELIZE = false;
+
     public Parser(Grammar grammar, String input) {
         this.grammar = grammar;
         this.input = input;
 
-        var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<ParsingContext, Boolean>());
+        var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
+        var memoEntriesWithNewMatches = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
 
-        // Find positions that all terminals match, and create the initial set of parsing context seeds from these.
-        for (var clause : grammar.allClauses) {
-            if (clause instanceof Start //
-                    || (clause instanceof Terminal //
-                            // TODO: this might break things 
-                            && !(clause instanceof Nothing))) {
-                Terminal terminal = (Terminal) clause;
-                // Run to (startPos == input.length()) inclusive for Nothing, since Nothing matches beyond end of input
-                int len = terminal instanceof Nothing ? input.length() + 1 : input.length();
-                for (int startPos = 0; startPos < len; startPos++) {
-                    // TODO: creating a ParsingContext requires creating memo entries for terminals 
-                    if (terminal.match(input, /* ignored */ null, startPos, /* ignored */ null) != null) {
-                        for (Clause seedAncestorClause : terminal.seedAncestorClauses) {
-                            activeSet.add(new ParsingContext(seedAncestorClause.getOrCreateMemoEntry(startPos)));
+        // Find positions that all terminals match, and create the initial active set from parents of terminals
+        (PARALLELIZE ? grammar.allClauses.parallelStream() : grammar.allClauses.stream()).forEach(clause -> {
+            // Create initial active set by matching all terminals at every character position.
+            // Assume Nothing (as a Terminal) does not need to trigger any parent rules by being in the first position. TODO: check this for each rule
+            if (clause instanceof Terminal && !(clause instanceof Nothing)) {
+                // Terminals are matched top down, to avoid creating memo table entries for them
+                for (int startPos = 0; startPos < input.length(); startPos++) {
+                    var memoEntry = new MemoEntry(clause, startPos);
+                    var match = memoEntry.match(input);
+                    if (match != null) {
+                        for (Clause seedParentClause : clause.seedParentClauses) {
+                            // Add parent clause to active set. This will cause the terminal to be
+                            // evaluated again top-down by the parent clause, but avoids creating a memo
+                            // table entry for the terminal.
+                            activeSet.add(seedParentClause.getOrCreateMemoEntry(startPos));
                         }
                     }
                 }
             }
-        }
+        });
 
         // Main parsing loop
         while (!activeSet.isEmpty()) {
+            //            System.out.println("\nActive set:");
 
-            System.out.println("\nActive set:");
-            var memoEntriesWithNewBestMatch = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
-            for (var parsingContext : activeSet) {
-                System.out.println("  " + parsingContext);
-                parsingContext.parentMemoEntry.clause.match(input, parsingContext,
-                        parsingContext.parentMemoEntry.startPos, memoEntriesWithNewBestMatch);
-            }
+            (PARALLELIZE ? activeSet.parallelStream() : activeSet.stream()).forEach(memoEntry -> {
+                // Match each MemoEntry in activeSet, populating memoEntriesWithNewMatches
+                //                System.out.println("  " + memoEntry);
+                Match newMatch = memoEntry.match(input);
+                if (newMatch != null) {
+                    memoEntry.newMatches.add(newMatch);
+                    memoEntriesWithNewMatches.add(memoEntry);
+                }
+            });
+
+            // Clear the active set for the next round
             activeSet.clear();
 
-            System.out.println("\nMemo entries with new best match:");
-            for (var memoEntry : memoEntriesWithNewBestMatch) {
-                System.out.println("  " + memoEntry);
-                memoEntry.updateBestMatch(input, activeSet);
-            }
-            memoEntriesWithNewBestMatch.clear();
+            //            System.out.println("\nMemo entries with new best match:");
+            (PARALLELIZE ? memoEntriesWithNewMatches.parallelStream() : memoEntriesWithNewMatches.stream())
+                    // For each MemoEntry in memoEntriesWithNewMatches, find best new match, and if the match 
+                    // improves, add the MemoEntry to the active set for the next round
+                    .forEach(memoEntry -> {
+                        //                        System.out.println("  " + memoEntry);
+                        memoEntry.updateBestMatch(input, activeSet);
+                    });
 
+            // Clear memoEntriesWithNewMatches for the next round
+            memoEntriesWithNewMatches.clear();
         }
-
-        ParserInfo.printParseResult(this);
-        
-        //        // TODO: This won't work if the parsing stops more than one level down from the toplevel match
-        //        // If toplevel clause requires top-down matching, run toplevel match
-        //        if (grammar.topLevelClause.matchTopDown()) {
-        //            int startPos = 0;
-        //            MemoEntry memoEntry = grammar.topLevelClause.getOrCreateMemoEntry(startPos);
-        //            memoEntry.bestMatch = grammar.topLevelClause.extendParsingContext(this, memoEntry,
-        //                    /* prevSubClauseParsingContext = */ null, startPos, /* visited = */ null);
-        //        }
     }
 }

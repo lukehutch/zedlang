@@ -38,7 +38,7 @@ public class Test {
             // String grammarStr = "a + b + c - d - e + f + g - h - i + j - k";
             // String grammarStr = "a + b + c * d - e - ((x + y) + (p + f) + g) + h - i / j / k";
             // String grammarStr = "a + b - c + d - e -  - x - y";
-            String grammarStr = "x=^ab^cd;";
+            String grammarStr = "x=^a^c;";
 
             // Parser parser = MetaGrammarSimple.newParser(grammarStr);
             Parser parser = new Parser(new Grammar(Arrays.asList( //

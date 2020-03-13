@@ -1,11 +1,7 @@
 package pikaparser.clause;
 
-import java.util.Collections;
-import java.util.Set;
-
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 /**
  * Always use this rule at the start of the toplevel rule -- it will trigger parsing even if the rest of the subclauses
@@ -24,9 +20,8 @@ public class Start extends Terminal {
     }
 
     @Override
-    public Match match(String inputIgnored, ParsingContext parsingContextIgnored, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatchIgnored) {
-        return startPos == 0 ? new Match(this, startPos, 0, Collections.emptyList(), 0) : null;
+    public Match match(MemoEntry memoEntry, String input) {
+        return memoEntry.startPos == 0 ? new Match(this, 0) : null;
     }
 
     @Override

@@ -8,7 +8,6 @@ import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
-import pikaparser.memotable.ParsingContext;
 
 public class CharSet extends Terminal {
 
@@ -63,10 +62,9 @@ public class CharSet extends Terminal {
     }
 
     @Override
-    public Match match(String input, ParsingContext parsingContextIgnored, int startPos,
-            Set<MemoEntry> memoEntriesWithNewBestMatchIgnored) {
-        return startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(startPos)))
-                ? new Match(this, startPos, 1, Collections.emptyList(), 0)
+    public Match match(MemoEntry memoEntry, String input) {
+        return memoEntry.startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(memoEntry.startPos)))
+                ? new Match(this, memoEntry.startPos, 1)
                 : null;
     }
 
