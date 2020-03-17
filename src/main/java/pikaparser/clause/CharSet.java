@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import pikaparser.memotable.Match;
@@ -14,6 +15,8 @@ import pikaparser.memotable.MemoTable;
 public class CharSet extends Terminal {
 
     public final Set<Character> charSet = new HashSet<>();
+
+    public final List<CharSet> subCharSets = new ArrayList<>();
 
     public boolean invertMatch = false;
 
@@ -46,14 +49,18 @@ public class CharSet extends Terminal {
     public CharSet(CharSet... charSets) {
         super();
         for (CharSet charSet : charSets) {
-            this.charSet.addAll(charSet.charSet);
+            this.subCharSets.add(charSet);
         }
     }
 
     public CharSet(Collection<CharSet> charSets) {
         super();
         for (CharSet charSet : charSets) {
-            this.charSet.addAll(charSet.charSet);
+            if (charSet.invertMatch) {
+
+            } else {
+                this.charSet.addAll(charSet.charSet);
+            }
         }
     }
 
@@ -63,65 +70,115 @@ public class CharSet extends Terminal {
         return this;
     }
 
+    public boolean matches(MemoKey memoKey, String input) {
+        boolean matches = !charSet.isEmpty() //
+                && (invertMatch ^ charSet.contains(input.charAt(memoKey.startPos)));
+        if (matches) {
+            return true;
+        }
+        if (!subCharSets.isEmpty()) {
+            // SubCharSets may be inverted, so need to test each individually for efficiency,
+            // rather than producing a large Set<Character> for all chars of an inverted CharSet
+            for (CharSet subCharSet : subCharSets) {
+                if (subCharSet.matches(memoKey, input)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> updatedEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
-        if (memoKey.startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(memoKey.startPos)))) {
+        if (memoKey.startPos >= input.length()) {
+            return null;
+        }
+        if (matches(memoKey, input)) {
             // Don't call MemoTable.addMatch for terminals, to limit size of memo table
+            memoTable.numMatchObjectsCreated.incrementAndGet();
             return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1,
                     Match.NO_SUBCLAUSE_MATCHES);
         }
         return null;
     }
 
-    // TODO: fix the escaping
     @Override
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
-            if (invertMatch) {
-                buf.append('^');
-            }
+            appendRulePrefix(buf);
             var charsSorted = new ArrayList<>(charSet);
             Collections.sort(charsSorted);
-            for (int i = 0; i < charsSorted.size(); i++) {
-                char c = charsSorted.get(i);
-                if (c >= 32 && c <= 126) {
-                    if (c == '^' && i == 0 && charSet.size() > 1) {
-                        // Escape '^' at beginning of non-inverted character set range
-                        buf.append('\\');
-                    } else if (c == ']' && charSet.size() > 1) {
-                        // Escape ']' within char range
-                        buf.append('\\');
-                    } else if (c == '\\') {
-                        buf.append("\\\\");
-                    } else {
-                        buf.append(c);
-                    }
+            boolean isSingleChar = !invertMatch && charsSorted.size() == 1;
+            if (isSingleChar) {
+                char c = charsSorted.iterator().next();
+                if (c == '\'') {
+                    buf.append("'\\''");
+                } else if (c == '\\') {
+                    buf.append("'\\\\'");
+                } else if (c >= 32 && c <= 126) {
+                    buf.append("'" + c + "'");
                 } else if (c == '\n') {
-                    buf.append("\\n");
+                    buf.append("'\\n'");
                 } else if (c == '\r') {
-                    buf.append("\\r");
+                    buf.append("'\\r'");
                 } else if (c == '\t') {
-                    buf.append("\\t");
+                    buf.append("'\\t'");
+                } else if (c == '\f') {
+                    buf.append("'\\f'");
                 } else {
-                    buf.append("\\u" + String.format("%04x", (int) c));
+                    buf.append("'\\u" + String.format("%04x", (int) c) + "'");
                 }
-                int j = i + 1;
-                while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
-                    j++;
+            } else {
+                if (!charsSorted.isEmpty()) {
+                    buf.append('[');
+                    if (invertMatch) {
+                        buf.append('^');
+                    }
+                    for (int i = 0; i < charsSorted.size(); i++) {
+                        char c = charsSorted.get(i);
+                        if (c == '\\') {
+                            buf.append("\\\\");
+                        } else if (c == ']') {
+                            buf.append("\\]");
+                        } else if (c == '[') {
+                            buf.append("\\[");
+                        } else if (c == '^' && i == 0) {
+                            buf.append("\\^");
+                        } else if (c >= 32 && c <= 126) {
+                            buf.append(c);
+                        } else if (c == '\n') {
+                            buf.append("\\n");
+                        } else if (c == '\r') {
+                            buf.append("\\r");
+                        } else if (c == '\t') {
+                            buf.append("\\t");
+                        } else {
+                            buf.append("\\u" + String.format("%04x", (int) c));
+                        }
+                        int j = i + 1;
+                        while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
+                            j++;
+                        }
+                        if (j > i + 2) {
+                            buf.append("-");
+                            i = j - 1;
+                            buf.append(charsSorted.get(i));
+                        }
+                    }
+                    buf.append(']');
                 }
-                if (j > i + 2) {
-                    buf.append("-");
-                    i = j - 1;
-                    buf.append(charsSorted.get(i));
+                for (var subCharSet : subCharSets) {
+                    if (buf.length() > 0) {
+                        buf.append(" | ");
+                    }
+                    buf.append(subCharSet.toString());
                 }
             }
-            String s = buf.toString();
-            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
-                    + ((!invertMatch && s.length() == 1 && s.charAt(0) >= 32 && s.charAt(0) <= 126) //
-                            ? "'" + s + "'" //
-                            : "[" + s + "]");
+            appendRuleSuffix(buf);
+            toStringCached = buf.toString();
         }
         return toStringCached;
     }

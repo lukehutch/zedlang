@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Set;
 
 import pikaparser.clause.Clause;
+import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
-import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
@@ -43,7 +43,7 @@ public class ParserInfo {
             if (clause.alwaysMatches) {
                 buf[i].append("<alwaysMatches> ");
             }
-            buf[i].append(clause.toStringWithRuleNamesAndLabels());
+            buf[i].append(clause.toString());
             marginWidth = Math.max(marginWidth, buf[i].length() + 2);
         }
         int tableWidth = marginWidth + input.length() + 1;
@@ -102,11 +102,17 @@ public class ParserInfo {
             System.out.print(i % 10);
         }
         System.out.println();
-        for (int j = 0; j < marginWidth; j++) {
+
+        for (int i = 0; i < marginWidth; i++) {
             System.out.print(' ');
         }
-        System.out.println(input.replace('\n', '⏎'));
-        for (int j = 0; j < marginWidth; j++) {
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            System.out.print(c < 32 || c > 126 ? '#' : c);
+        }
+        System.out.println();
+
+        for (int i = 0; i < marginWidth; i++) {
             System.out.print(' ');
         }
         for (int i = 0; i < input.length(); i++) {
@@ -143,6 +149,11 @@ public class ParserInfo {
         if (topLevelMatches.isEmpty()) {
             System.out.println("\nRule \"" + topLevelRuleName + "\" did not match anything");
         } else {
+            for (int i = 0; i < topLevelMatches.size(); i++) {
+                var topLevelMatch = topLevelMatches.get(i);
+                getConsumedChars(topLevelMatch, consumedChars);
+            }
+
             System.out.println("\nFinal matches for rule \"" + topLevelRuleName + "\":");
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
@@ -157,32 +168,43 @@ public class ParserInfo {
                     ast.printParseTree(parser.input);
                 }
             }
-
-            for (int i = 0; i < topLevelMatches.size(); i++) {
-                var topLevelMatch = topLevelMatches.get(i);
-                getConsumedChars(topLevelMatch, consumedChars);
-            }
         }
 
         // Find reachable clauses, by reversing topological order of clauses, and putting terminals last 
-        var sortedClauses = new ArrayList<Clause>();
+        var clauseOrder = new ArrayList<Clause>();
         List<Clause> allClauses = parser.grammar.allClauses;
         for (int i = 0; i < allClauses.size(); i++) {
             Clause clause = allClauses.get(allClauses.size() - 1 - i);
             if (!(clause instanceof Terminal)) {
-                // Don't include terminals in clause list
-                sortedClauses.add(clause);
+                // First show nonterminals
+                clauseOrder.add(clause);
             }
         }
         for (int i = 0; i < allClauses.size(); i++) {
             Clause clause = allClauses.get(i);
             if (clause instanceof Terminal && !(clause instanceof Nothing)) {
-                sortedClauses.add(clause);
+                // Then show terminals
+                clauseOrder.add(clause);
             }
         }
 
         // Print memo table
         System.out.println();
-        printMemoTable(parser, sortedClauses, consumedChars);
+        printMemoTable(parser, clauseOrder, consumedChars);
+
+        // Print other matches
+        for (Clause clause : parser.grammar.allClauses) {
+            var matches = parser.memoTable.getNonOverlappingMatches(clause);
+            if (!matches.isEmpty()) {
+                System.out.println("\n====================================\n\nMatches for " + clause + " :");
+                for (int i = 0; i < matches.size(); i++) {
+                    System.out.println("\n#");
+                    matches.get(i).printParseTree(parser.input, "", i == matches.size() - 1);
+                }
+            }
+        }
+
+        System.out.println("\nNum match objects created: " + parser.memoTable.numMatchObjectsCreated);
+        System.out.println("Num match objects memoized:  " + parser.memoTable.numMatchObjectsMemoized);
     }
 }

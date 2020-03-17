@@ -130,7 +130,7 @@ public class Match implements Comparable<Match> {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + memoKey.clause.toStringWithRuleNamesAndLabels() + " : "
+        System.out.println(indentStr + "+-- " + memoKey.clause + " : "
                 + memoKey.startPos + "+" + len + " \"" + inp + "\"");
         if (subClauseMatches != null) {
             for (int i = 0; i < subClauseMatches.length; i++) {
@@ -149,7 +149,7 @@ public class Match implements Comparable<Match> {
     public String toString() {
         StringBuilder buf = new StringBuilder();
         buf.append(
-                memoKey.clause.toStringWithRuleNamesAndLabels() + " : " + memoKey.startPos + "+" + len + " => [ ");
+                memoKey.clause + " : " + memoKey.startPos + "+" + len + " => [ ");
         for (int i = 0; i < subClauseMatches.length; i++) {
             var s = subClauseMatches[i];
             if (i > 0) {

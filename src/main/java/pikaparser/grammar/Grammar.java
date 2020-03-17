@@ -17,14 +17,15 @@ import pikaparser.memotable.MemoTable;
 public class Grammar {
     public final List<Clause> rules;
     public final List<Clause> allClauses;
+    public Clause lexRule;
     public final Map<String, Clause> ruleNameToRule = new HashMap<>();
 
     public Grammar(List<Clause> rules) {
-        if (rules.size() == 0) {
-            throw new IllegalArgumentException("Grammar must consist of at least one rule");
-        }
-        this.rules = rules;
+        this(/* lexRuleName = */ null, rules);
+    }
 
+    public Grammar(String lexRuleName, List<Clause> rules) {
+        // Call the toString() method on all clauses, so that 
         // Create mapping from rule name to rule, so RuleRef nodes can be resolved
         for (var rule : rules) {
             if (rule.ruleName == null) {
@@ -33,6 +34,29 @@ public class Grammar {
             if (ruleNameToRule.put(rule.ruleName, rule) != null) {
                 throw new IllegalArgumentException("Duplicate rule name: " + rule.ruleName);
             }
+        }
+
+        // Find the toplevel lex rule, if lexRuleName is specified
+        if (lexRuleName != null) {
+            lexRule = ruleNameToRule.get(lexRuleName);
+            if (lexRule == null) {
+                throw new IllegalArgumentException("Unknown lex rule name: " + lexRuleName);
+            }
+            // Check the lex rule does not contain any cycles
+            checkNoCycles(lexRule, new HashSet<Clause>());
+        }
+
+        if (rules.size() == 0) {
+            throw new IllegalArgumentException("Grammar must consist of at least one rule");
+        }
+        this.rules = rules;
+
+        // Run toString() method on all clauses, bottom-up, so that toString() values are cached, and so that
+        // after replacing all RuleRef objects with direct Clause references, calling toString() on a cyclic
+        // clause structure does not get stuck in an infinite loop
+        Set<Clause> toStringVisited = new HashSet<>();
+        for (Clause rule : rules) {
+            callToString(rule, toStringVisited);
         }
 
         // Find all rules that have an AST node label at the top level, and remove the CreateASTNode
@@ -74,6 +98,31 @@ public class Grammar {
         }
     }
 
+    /**
+     * Recursively call toString() on clause tree, so that toString() values are cached before {@link RuleRef}
+     * objects are replaced with direct references.
+     */
+    private static void callToString(Clause clause, Set<Clause> visited) {
+        if (visited.add(clause)) {
+            for (var subClause : clause.subClauses) {
+                callToString(subClause, visited);
+            }
+            // Call toString() bottom-up so subclause toString() values are cached
+            clause.toString();
+        }
+    }
+
+    /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lex). */
+    private static void checkNoCycles(Clause clause, Set<Clause> visited) {
+        if (visited.add(clause)) {
+            for (var subClause : clause.subClauses) {
+                checkNoCycles(subClause, visited);
+            }
+        } else {
+            throw new IllegalArgumentException("Lex rule's clause tree contains a cycle at " + clause);
+        }
+    }
+
     /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
     private static void findReachableClauses(Clause clause, Set<Clause> visited, List<Clause> revTopoOrderOut) {
         if (visited.add(clause)) {
@@ -93,7 +142,7 @@ public class Grammar {
             Clause subClause = clause.subClauses[i];
             String subClauseASTNodeLabel = null;
             Clause replacementSubClause = subClause;
-
+            boolean followedRuleRef = false;
             if (replacementSubClause instanceof CreateASTNode || replacementSubClause instanceof RuleRef) {
                 var visited = new LinkedHashSet<Clause>();
                 for (boolean changed = true; changed;) {
@@ -124,6 +173,7 @@ public class Grammar {
                             if (replacementSubClause == null) {
                                 throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
                             }
+                            followedRuleRef = true;
                             changed = true;
                         }
                     } else {
@@ -153,8 +203,11 @@ public class Grammar {
 
             // Add AST node label in subclause position, if node is labeled
 
-            // Recurse
-            resolveSubclauses(replacementSubClause);
+            // Recurse through subclause tree, stopping at any RuleRef instances (referenced rules will be
+            // processed separately -- this also avoids an infinite loop)
+            if (!followedRuleRef) {
+                resolveSubclauses(subClause);
+            }
         }
     }
 

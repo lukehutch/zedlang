@@ -33,6 +33,6 @@ public class MemoKey {
 
     @Override
     public String toString() {
-        return clause.toStringWithRuleNamesAndLabels() + " : " + startPos;
+        return clause + " : " + startPos;
     }
 }

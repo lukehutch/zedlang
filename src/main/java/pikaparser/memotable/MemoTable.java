@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.Clause.MatchDirection;
@@ -16,6 +17,14 @@ import pikaparser.clause.Terminal;
 public class MemoTable {
     /** A map from clause to startPos to MemoEntry. */
     private Map<Clause, ConcurrentSkipListMap<Integer, MemoEntry>> memoTable = new ConcurrentHashMap<>();
+
+    /** The number of {@link Match} instances created. */
+    public final AtomicInteger numMatchObjectsCreated = new AtomicInteger();
+
+    /**
+     * The number of {@link Match} instances added to the memo table (some will be overwritten by later matches).
+     */
+    public final AtomicInteger numMatchObjectsMemoized = new AtomicInteger();
 
     /**
      * Get the existing {@link MemoEntry} for this clause at the requested start position, or create and return a
@@ -46,11 +55,12 @@ public class MemoTable {
      * If matchDirection == TOP_DOWN, recurse down through child clauses (standard recursive descent parsing,
      * unmemoized).
      */
-    public Match match(MatchDirection matchDirection, MemoKey parentMemoKey, MemoKey memoKey, String input,
+    public Match match(MatchDirection matchDirection, MemoKey memoKey, String input, MemoKey parentMemoKey,
             Set<MemoEntry> newMatchMemoEntries) {
-        if (matchDirection == MatchDirection.TOP_DOWN || memoKey.clause instanceof Terminal) {
-            // Don't add entry to memo table for terminals, just performa a top-down match
+        if (memoKey.clause instanceof Terminal) {
+            // Don't add entry to memo table for terminals, just perform a top-down match
             return memoKey.clause.match(MatchDirection.TOP_DOWN, this, memoKey, input, newMatchMemoEntries);
+
         }
 
         // Get MemoEntry for the MemoKey
@@ -60,22 +70,37 @@ public class MemoTable {
         // will propagate to the parent
         memoEntry.backrefs.add(parentMemoKey);
 
-        if (memoEntry.bestMatch == null && memoKey.clause.alwaysMatches) {
+        Match bestMatch;
+        boolean updateMemoTable;
+        if (matchDirection == MatchDirection.TOP_DOWN) {
+            // If this is a top-down non-terminal match, triggered by the lex preprocessing step,
+            // then match top-down, but also memoize the result.
+            bestMatch = memoKey.clause.match(MatchDirection.TOP_DOWN, this, memoKey, input, newMatchMemoEntries);
+            updateMemoTable = bestMatch != null;
+
+        } else if (memoEntry.bestMatch == null && memoKey.clause.alwaysMatches) {
             // If there is no current best match for the memo, but the subclause always matches, create and memoize
             // a new zero-width match. This will trigger the parent clause to be reevaluated in the next iteration.
             // Record the new match in the memo entry, and schedule the memo entry to be updated.
-            var newEmptyMatch = new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
+            bestMatch = new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
                     Match.NO_SUBCLAUSE_MATCHES);
-            memoEntry.newMatches.add(newEmptyMatch);
-            newMatchMemoEntries.add(memoEntry);
-
-            return newEmptyMatch;
+            numMatchObjectsCreated.incrementAndGet();
+            numMatchObjectsMemoized.incrementAndGet();
+            updateMemoTable = true;
 
         } else {
             // If there's already a best match for the memo entry, return it.
-            // Otherwise, if the clause does not always match, return null for the match (no match is known yet).  
-            return memoEntry.bestMatch;
+            // If the clause did not match yet (memoEntry.bestMatch == null), return null.  
+            bestMatch = memoEntry.bestMatch;
+            updateMemoTable = false;
         }
+
+        // Update the memo table, if a new match was found.
+        if (updateMemoTable) {
+            memoEntry.newMatches.add(bestMatch);
+            newMatchMemoEntries.add(memoEntry);
+        }
+        return bestMatch;
     }
 
     /**
@@ -95,6 +120,8 @@ public class MemoTable {
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
         var newMatch = new Match(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches);
+        numMatchObjectsCreated.incrementAndGet();
+        numMatchObjectsMemoized.incrementAndGet();
         memoEntry.newMatches.add(newMatch);
         newMatchMemoEntries.add(memoEntry);
 

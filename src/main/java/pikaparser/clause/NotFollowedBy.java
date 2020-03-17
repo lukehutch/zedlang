@@ -17,7 +17,7 @@ public class NotFollowedBy extends Clause {
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
             Set<MemoEntry> updatedEntries) {
         var subClauseMemoKey = new MemoKey(subClauses[0], memoKey.startPos);
-        var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
+        var subClauseMatch = memoTable.match(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
         // Replace any invalid subclause match with a zero-char-consuming match
         if (subClauseMatch == null) {
             return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, new Match[] { subClauseMatch },
@@ -29,12 +29,17 @@ public class NotFollowedBy extends Clause {
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
-                    + "!(" //
-                    + (subClauseASTNodeLabels != null && subClauseASTNodeLabels[0] != null
-                            ? subClauseASTNodeLabels[0] + ':'
-                            : "")
-                    + subClauses[0] + ")";
+            var buf = new StringBuilder();
+            appendRulePrefix(buf);
+            buf.append("!(");
+            if (subClauseASTNodeLabels != null && subClauseASTNodeLabels[0] != null) {
+                buf.append(subClauseASTNodeLabels[0]);
+                buf.append(':');
+            }
+            buf.append(subClauses[0].toString());
+            buf.append(')');
+            appendRuleSuffix(buf);
+            toStringCached = buf.toString();
         }
         return toStringCached;
     }

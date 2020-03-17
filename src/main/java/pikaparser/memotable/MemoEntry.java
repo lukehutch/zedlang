@@ -38,15 +38,6 @@ public class MemoEntry {
             // There was no previous best match, and there is only one new match 
             newBestMatch = newMatches.remove();
 
-            //            System.out.println("     new:");
-            //            newBestMatch.printParseTree(input, "        ", true);
-            //            System.out.println("     old:");
-            //            if (bestMatch != null) {
-            //                bestMatch.printParseTree(input, "        ", true);
-            //            } else {
-            //                System.out.println("        null");
-            //            }
-
         } else {
             // Compare the previous best match to the new best matches using Comparator<Match>.
             // Find new best match in list (avoid sorting matches, only need the first one).
@@ -59,11 +50,6 @@ public class MemoEntry {
                     newBestMatch = match;
                 }
             }
-
-            //            for (var m : allMatches) {
-            //                System.out.println("      " + (m == bestMatch ? "old:" : m == newBestMatch ? "new:" : ""));
-            //                m.printParseTree(input, "          ", true);
-            //            }
         }
 
         // If there is a new best match
@@ -78,15 +64,13 @@ public class MemoEntry {
             }
 
             // Any parent clause that depended upon the previous match also needs to be added to the active set
-            for (var backref : backrefs) {
-                activeSetOut.add(backref);
-            }
+            activeSetOut.addAll(backrefs);
             backrefs.clear();
         }
     }
 
     @Override
     public String toString() {
-        return memoKey.clause.toStringWithRuleNamesAndLabels() + " : " + memoKey.startPos;
+        return memoKey.clause + " : " + memoKey.startPos;
     }
 }

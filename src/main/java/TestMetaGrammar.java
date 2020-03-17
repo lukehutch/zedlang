@@ -8,20 +8,20 @@ import pikaparser.parser.ParserInfo;
 public class TestMetaGrammar {
 
     public static void main(String[] args) throws IOException {
-        String zedGrammar;
+        String grammarStr;
         try (var stream = TestMetaGrammar.class.getClassLoader().getResource("zedGrammarSimple").openStream()) {
-            zedGrammar = new String(stream.readAllBytes());
+            grammarStr = new String(stream.readAllBytes());
         }
 
-        Parser metaParser = MetaGrammar.newParser(zedGrammar);
+        Parser metaParser = new Parser(MetaGrammar.grammar, grammarStr);
 
         ParserInfo.printParseResult(metaParser, "Grammar");
 
         Grammar grammar = MetaGrammar.parseGrammar(metaParser);
 
-        System.out.println("Parsed grammar:");
+        System.out.println("\nParsed grammar:");
         for (var clause : grammar.allClauses) {
-            System.out.println("    " + clause.toStringWithRuleNamesAndLabels() + ";");
+            System.out.println("    " + clause);
         }
     }
 

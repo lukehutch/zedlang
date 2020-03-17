@@ -24,9 +24,15 @@ public class FirstMatch extends Clause {
 
     @Override
     public void testWhetherAlwaysMatches() {
-        for (Clause subClause : subClauses) {
+        for (int i = 0; i < subClauses.length; i++) {
+            Clause subClause = subClauses[i];
             if (subClause.alwaysMatches) {
                 alwaysMatches = true;
+                if (i < subClauses.length - 1) {
+                    throw new IllegalArgumentException("Subclause " + i + " of " + FirstMatch.class.getSimpleName()
+                            + " can evaluate to " + Nothing.class.getSimpleName()
+                            + ", which means subsequent subclauses will never be matched: " + this);
+                }
                 break;
             }
         }
@@ -44,7 +50,7 @@ public class FirstMatch extends Clause {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
-            var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
+            var subClauseMatch = memoTable.match(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
             if (subClauseMatch != null) {
                 return memoTable.addMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch }, updatedEntries);
             }
@@ -56,10 +62,7 @@ public class FirstMatch extends Clause {
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
-            if (ruleNodeLabel != null) {
-                buf.append(ruleNodeLabel);
-                buf.append(':');
-            }
+            appendRulePrefix(buf);
             buf.append('(');
             for (int i = 0; i < subClauses.length; i++) {
                 if (i > 0) {
@@ -72,6 +75,7 @@ public class FirstMatch extends Clause {
                 buf.append(subClauses[i].toString());
             }
             buf.append(')');
+            appendRuleSuffix(buf);
             toStringCached = buf.toString();
         }
         return toStringCached;

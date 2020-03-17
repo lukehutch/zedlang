@@ -30,7 +30,7 @@ public class OneOrMore extends Clause {
         var currStartPos = memoKey.startPos;
         for (;;) {
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
-            var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
+            var subClauseMatch = memoTable.match(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
             if (subClauseMatch == null) {
                 break;
             }
@@ -53,11 +53,17 @@ public class OneOrMore extends Clause {
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
-                    + (subClauseASTNodeLabels != null && subClauseASTNodeLabels[0] != null
-                            ? subClauseASTNodeLabels[0] + ':'
-                            : "") //
-                    + subClauses[0] + "+";
+            var buf = new StringBuilder();
+            appendRulePrefix(buf);
+            buf.append('(');
+            if (subClauseASTNodeLabels != null && subClauseASTNodeLabels[0] != null) {
+                buf.append(subClauseASTNodeLabels[0]);
+                buf.append(':');
+            }
+            buf.append(subClauses[0].toString());
+            buf.append(")+");
+            appendRuleSuffix(buf);
+            toStringCached = buf.toString();
         }
         return toStringCached;
     }

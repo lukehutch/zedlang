@@ -23,11 +23,13 @@ public class Start extends Terminal {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> updatedEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         // Match zero characters at beginning of input
         if (memoKey.startPos == 0) {
             // Don't call MemoTable.addMatch for terminals, to limit size of memo table
+            memoTable.numMatchObjectsCreated.incrementAndGet();
             return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
                     Match.NO_SUBCLAUSE_MATCHES);
         }
@@ -37,8 +39,11 @@ public class Start extends Terminal {
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
-                    + "[Start]";
+            var buf = new StringBuilder();
+            appendRulePrefix(buf);
+            buf.append(START_STR);
+            appendRuleSuffix(buf);
+            toStringCached = buf.toString();
         }
         return toStringCached;
     }

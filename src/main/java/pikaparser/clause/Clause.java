@@ -12,7 +12,6 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public abstract class Clause {
-
     public String ruleName;
     public final Clause[] subClauses;
 
@@ -72,32 +71,33 @@ public abstract class Clause {
     public static enum MatchDirection {
         BOTTOM_UP, TOP_DOWN;
     }
-    
-    /** Match a clause bottom-up at a given start position. 
-     * @param matchDirection TODO*/
-    public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey,
-            String input, Set<MemoEntry> updatedEntries);
+
+    /**
+     * Match a clause bottom-up at a given start position.
+     * 
+     * @param matchDirection
+     *            TODO
+     */
+    public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries);
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** The hashCode compares only the string representation of sub-clauses, not rule names. */
-    @Override
-    public int hashCode() {
-        return toString().hashCode();
-    }
-
-    /** Equality compares only the string representation of sub-clauses, not rule names. */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o == null || !(o instanceof Clause)) {
-            return false;
+    protected void appendRulePrefix(StringBuilder buf) {
+        if (ruleName != null) {
+            buf.append('(');
+            buf.append(ruleName);
+            buf.append(" = ");
+            if (ruleNodeLabel != null) {
+                buf.append(ruleNodeLabel);
+                buf.append(':');
+            }
         }
-        return this.toString().equals(o.toString());
     }
 
-    public String toStringWithRuleNamesAndLabels() {
-        return ruleName == null ? toString() : ruleName + " = " + toString();
+    protected void appendRuleSuffix(StringBuilder buf) {
+        if (ruleName != null) {
+            buf.append(')');
+        }
     }
 }

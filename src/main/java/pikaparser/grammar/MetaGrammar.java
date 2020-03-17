@@ -124,12 +124,14 @@ public class MetaGrammar {
     // Rule names:
 
     private static final String GRAMMAR = "Grammar";
+    private static final String LEX = "Lex";
     private static final String WS = "WS";
     private static final String RULE = "Rule";
     private static final String CLAUSE = "Clause";
     private static final String NAME = "Name";
     private static final String LABEL = "Label";
     private static final String NAME_CHAR = "NameChar";
+    private static final String PARENS = "Parens";
     private static final String SEQ = "Seq";
     private static final String FIRST_MATCH = "FirstMatch";
     private static final String FOLLOWED_BY = "FollowedBy";
@@ -140,8 +142,9 @@ public class MetaGrammar {
     private static final String CHAR_RANGE = "CharRange";
     private static final String CHAR_RANGE_CHAR = "CharRangeChar";
     private static final String QUOTED_STRING = "QuotedString";
+    private static final String ESCAPED_CTRL_CHAR = "EscapedCtrlChar";
     private static final String SINGLE_QUOTED_CHAR = "SingleQuotedChar";
-    private static final String STRING_QUOTED_CHAR = "StringQuotedChar";
+    private static final String STR_QUOTED_CHAR = "StrQuotedChar";
     private static final String NOTHING = "Nothing";
     private static final String START = "Start";
 
@@ -166,112 +169,133 @@ public class MetaGrammar {
     public static final CharSet LETTER = new CharSet(new CharSet('a', 'z'), new CharSet('A', 'Z'));
     public static final CharSet DIGIT = new CharSet('0', '9');
 
-    public static Parser newParser(String input) {
-        var grammar = new Grammar(Arrays.asList(//
-                rule(GRAMMAR, //
-                        seq(start(), ws, oneOrMore(r(RULE)))), //
+    // Toplevel rule for lex preprocessing (use null to disable lexing)
+    
+    public static final String LEX_RULE_NAME = LEX;
 
-                rule(WS, //
-                        optional(oneOrMore(WHITESPACE))), //
+    public static Grammar grammar = new Grammar(LEX_RULE_NAME, Arrays.asList(//
+            rule(GRAMMAR, //
+                    seq(start(), ws, oneOrMore(r(RULE)))), //
 
-                rule(RULE, //
-                        ast(RULE_AST, seq(r(NAME), ws, c('='), ws, r(CLAUSE), ws, c(';'), ws))), //
+            rule(RULE, //
+                    ast(RULE_AST, seq(r(NAME), ws, c('='), ws, r(CLAUSE), ws, c(';'), ws))), //
 
-                rule(NAME, //
-                        ast(NAME_AST, oneOrMore(r(NAME_CHAR)))), //
+            rule(CLAUSE, //
+                    seq( // 
+                            optional(r(LABEL)), //
+                            first( //
+                                    // This has to come first, since it's right-associative.
+                                    // Otherwise, anything that depends upon Clause will greedily
+                                    // consume a shorter match not including the '+' suffix.
+                                    r(ONE_OR_MORE),
 
-                rule(NAME_CHAR, new CharSet(LETTER, DIGIT, new CharSet("_-."))),
+                                    r(PARENS), //
+                                    r(SEQ), //
+                                    r(FIRST_MATCH), //
+                                    r(FOLLOWED_BY), //
+                                    r(NOT_FOLLOWED_BY), //
+                                    r(NAME), //
+                                    r(QUOTED_STRING), //
+                                    r(CHAR_SET), //
+                                    r(NOTHING), //
+                                    r(START)))), //
 
-                rule(CLAUSE, //
-                        seq( // 
-                                optional(r(LABEL)), //
-                                first( //
-                                        // This has to come first, since it's right-associative.
-                                        // Otherwise, anything that depends upon Clause will greedily
-                                        // consume a shorter match not including the '+' suffix.
-                                        r(ONE_OR_MORE),
+            rule(LABEL, seq(ast(LABEL_AST, r(NAME)), ws, c(':'), ws)), //
 
-                                        seq(c('('), ws, r(CLAUSE), c(')')), //
-                                        r(SEQ), //
-                                        r(FIRST_MATCH), //
-                                        r(FOLLOWED_BY), //
-                                        r(NOT_FOLLOWED_BY), //
-                                        r(NAME), //
-                                        r(QUOTED_STRING), //
-                                        r(CHAR_SET), //
-                                        r(NOTHING), //
-                                        r(START)))), //
+            rule(PARENS, seq(c('('), ws, r(CLAUSE), c(')'))), //
 
-                rule(LABEL, seq(ast(LABEL_AST, r(NAME)), ws, c(':'), ws)), //
+            rule(SEQ, //
+                    ast(SEQ_AST, seq(r(CLAUSE), oneOrMore(seq(ws, r(CLAUSE)))))),
 
-                rule(SEQ, //
-                        ast(SEQ_AST, seq(r(CLAUSE), oneOrMore(seq(ws, r(CLAUSE)))))),
+            rule(ONE_OR_MORE, //
+                    ast(ONE_OR_MORE_AST, seq(r(CLAUSE), ws, //
+                            //                                first(text("++"), // TODO: OneOrMoreSuffix
+                            //                                        c('+'))
+                            c('+')))),
 
-                rule(ONE_OR_MORE, //
-                        ast(ONE_OR_MORE_AST, seq(r(CLAUSE), ws, //
-                                //                                first(text("++"), // TODO: OneOrMoreSuffix
-                                //                                        c('+'))
-                                c('+')))),
+            rule(FIRST_MATCH, //
+                    ast(FIRST_MATCH_AST, seq(r(CLAUSE), oneOrMore(seq(ws, c('|'), ws, r(CLAUSE)))))),
 
-                rule(FIRST_MATCH, //
-                        ast(FIRST_MATCH_AST, seq(r(CLAUSE), oneOrMore(seq(ws, c('|'), ws, r(CLAUSE)))))),
+            rule(FOLLOWED_BY, //
+                    ast(FOLLOWED_BY_AST, seq(c('&'), r(CLAUSE)))),
 
-                rule(FOLLOWED_BY, //
-                        ast(FOLLOWED_BY_AST, seq(c('&'), r(CLAUSE)))),
+            rule(NOT_FOLLOWED_BY, //
+                    ast(NOT_FOLLOWED_BY_AST, seq(c('!'), r(CLAUSE)))),
 
-                rule(NOT_FOLLOWED_BY, //
-                        ast(NOT_FOLLOWED_BY_AST, seq(c('!'), r(CLAUSE)))),
+            // Lex rule for preprocessing:
+            rule(LEX, //
+                    oneOrMore( //
+                            first( //
+                                    r(NAME), //
+                                    r(QUOTED_STRING), //
+                                    r(CHAR_SET), //
+                                    new CharSet("()[]=;^"), //
 
-                rule(CHAR_SET, //
-                        first( //
-                                seq(c('\''), ast(SINGLE_QUOTED_CHAR_AST, r(SINGLE_QUOTED_CHAR)), c('\'')), //
-                                seq(c('['), //
-                                        ast(CHAR_RANGE_AST, seq(optional(c('^')), //
-                                                oneOrMore(first( //
-                                                        r(CHAR_RANGE), //
-                                                        r(CHAR_RANGE_CHAR))))),
-                                        c(']')))), //
-                rule(SINGLE_QUOTED_CHAR, //
-                        first( //
-                                text("\\t"), //
-                                text("\\b"), //
-                                text("\\n"), //
-                                text("\\r"), //
-                                text("\\f"), //
-                                text("\\'"), //
-                                text("\\\""), //
-                                text("\\\\"), //
-                                seq(text("\\u"), r(HEX), r(HEX), r(HEX), r(HEX)), //
-                                new CharSet('\\', '\'').invert())), //
+                                    // WS has to come last, since it can match Nothing
+                                    r(WS)) //
+                    )), //
 
-                rule(HEX, new CharSet(DIGIT, new CharSet('a', 'f'), new CharSet('A', 'F'))), //
+            rule(WS, //
+                    optional(oneOrMore(WHITESPACE))), //
 
-                rule(CHAR_RANGE, //
-                        seq(r(CHAR_RANGE_CHAR), c('-'), r(CHAR_RANGE_CHAR))), //
+            rule(NAME, //
+                    ast(NAME_AST, oneOrMore(r(NAME_CHAR)))), //
 
-                rule(CHAR_RANGE_CHAR, //
-                        first( //
-                                new CharSet('\\', ']').invert(), //
-                                r(SINGLE_QUOTED_CHAR), //
-                                text("\\]"), //
-                                text("\\^"))),
+            rule(NAME_CHAR, new CharSet(LETTER, DIGIT, new CharSet("_-."))),
 
-                rule(QUOTED_STRING, //
-                        seq(c('"'), ast(QUOTED_STRING_AST, zeroOrMore(r(STRING_QUOTED_CHAR))), c('"'))), //
+            rule(CHAR_SET, //
+                    first( //
+                            seq(c('\''), ast(SINGLE_QUOTED_CHAR_AST, r(SINGLE_QUOTED_CHAR)), c('\'')), //
+                            seq(c('['), //
+                                    ast(CHAR_RANGE_AST, seq(optional(c('^')), //
+                                            oneOrMore(first( //
+                                                    r(CHAR_RANGE), //
+                                                    r(CHAR_RANGE_CHAR))))),
+                                    c(']')))), //
 
-                rule(STRING_QUOTED_CHAR, //
-                        first( //
-                                new CharSet('\\', '\"').invert(), //
-                                r(SINGLE_QUOTED_CHAR))), //
+            rule(SINGLE_QUOTED_CHAR, //
+                    first( //
+                            r(ESCAPED_CTRL_CHAR), //
+                            new CharSet("\'\\").invert())), //
 
-                rule(NOTHING, //
-                        seq(c('('), ws, c(')'))),
+            rule(HEX, new CharSet(DIGIT, new CharSet('a', 'f'), new CharSet('A', 'F'))), //
 
-                rule(START, c('^')) //
-        ));
+            rule(CHAR_RANGE, //
+                    seq(r(CHAR_RANGE_CHAR), c('-'), r(CHAR_RANGE_CHAR))), //
 
-        return new Parser(grammar, input);
-    }
+            rule(CHAR_RANGE_CHAR, //
+                    first( //
+                            new CharSet('\\', ']').invert(), //
+                            r(SINGLE_QUOTED_CHAR), //
+                            text("\\]"), //
+                            text("\\^"))),
+
+            rule(QUOTED_STRING, //
+                    seq(c('"'), ast(QUOTED_STRING_AST, zeroOrMore(r(STR_QUOTED_CHAR))), c('"'))), //
+
+            rule(STR_QUOTED_CHAR, //
+                    first( //
+                            r(ESCAPED_CTRL_CHAR), //
+                            new CharSet("\"\\").invert() //
+                    )), //
+
+            rule(ESCAPED_CTRL_CHAR, //
+                    first( //
+                            text("\\t"), //
+                            text("\\b"), //
+                            text("\\n"), //
+                            text("\\r"), //
+                            text("\\f"), //
+                            text("\\'"), //
+                            text("\\\""), //
+                            text("\\\\"), //
+                            seq(text("\\u"), r(HEX), r(HEX), r(HEX), r(HEX)))), //
+
+            rule(NOTHING, //
+                    seq(c('('), ws, c(')'))),
+
+            rule(START, c('^')) //
+    ));
 
     private static int hexDigitToInt(char c) {
         if (c >= '0' && c <= '9') {
@@ -406,13 +430,18 @@ public class MetaGrammar {
         }
         var topLevelASTNode = topLevelMatches.get(0).toAST(parser.input);
         List<Clause> ruleClauses = new ArrayList<>();
+        String lexRuleName = null;
         for (ASTNode astNode : topLevelASTNode.children) {
             if (!astNode.astLabel.equals(RULE_AST)) {
                 throw new IllegalArgumentException("Wrong node type");
             }
             Clause rule = parseRule(astNode, parser.input);
             ruleClauses.add(rule);
+            if (rule.ruleName != null && rule.ruleName.equals(LEX)) {
+                // If a rule is named "Lex", then use that as the toplevel lex rule
+                lexRuleName = LEX;
+            }
         }
-        return new Grammar(ruleClauses);
+        return new Grammar(lexRuleName, ruleClauses);
     }
 }

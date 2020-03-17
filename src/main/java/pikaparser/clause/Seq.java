@@ -36,11 +36,14 @@ public class Seq extends Clause {
 
     @Override
     public List<Clause> getSeedSubClauses() {
-        // Any sub-clause up to and including the first clause that doesn't always match could be the matching clause
+        // Any sub-clause up to and including the first clause that doesn't always match could be the matching
+        // clause. Also need to accept a Start token at the beginning of a sequence as "always matching" so that
+        // the toplevel clause is triggered when a subsequent subclause matches
         List<Clause> seedSubClauses = new ArrayList<>(subClauses.length);
         for (int i = 0; i < subClauses.length; i++) {
             seedSubClauses.add(subClauses[i]);
-            if (!subClauses[i].alwaysMatches) {
+            if (!subClauses[i].alwaysMatches && !(subClauses[i] instanceof Start)) {
+                // Don't need to seed any subsequent subclauses
                 break;
             }
         }
@@ -55,7 +58,7 @@ public class Seq extends Clause {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
-            var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
+            var subClauseMatch = memoTable.match(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 return null;
@@ -73,10 +76,7 @@ public class Seq extends Clause {
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
-            if (ruleNodeLabel != null) {
-                buf.append(ruleNodeLabel);
-                buf.append(':');
-            }
+            appendRulePrefix(buf);
             buf.append('(');
             for (int i = 0; i < subClauses.length; i++) {
                 if (i > 0) {
@@ -89,6 +89,7 @@ public class Seq extends Clause {
                 buf.append(subClauses[i].toString());
             }
             buf.append(')');
+            appendRuleSuffix(buf);
             toStringCached = buf.toString();
         }
         return toStringCached;

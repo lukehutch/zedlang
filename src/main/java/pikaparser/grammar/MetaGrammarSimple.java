@@ -1,5 +1,6 @@
 package pikaparser.grammar;
 
+
 import java.util.Arrays;
 
 import pikaparser.clause.CharSeq;
@@ -11,7 +12,6 @@ import pikaparser.clause.Nothing;
 import pikaparser.clause.OneOrMore;
 import pikaparser.clause.RuleRef;
 import pikaparser.clause.Seq;
-import pikaparser.parser.Parser;
 
 public class MetaGrammarSimple {
 
@@ -66,66 +66,60 @@ public class MetaGrammarSimple {
 
     public static final CharSet LETTER_OR_DIGIT = new CharSet(LETTER, DIGIT);
 
-    public static Parser newParser(String input) {
+    public static final Grammar grammar = new Grammar(Arrays.asList(//
+            rule("Clause", //
+                    r("P5l")),
 
-        var grammar = new Grammar(Arrays.asList(//
-                rule("Clause", //
-                        r("P5l")),
+            rule("P5l", //
+                    first( //
+                            r("P5"), //
+                            r("P4l") //
+                    )), //
 
-                rule("P5l", //
-                        first( //
-                                r("P5"), //
-                                r("P4l") //
-                        )), //
+            rule("P4l", //
+                    first( //
+                            r("P4"), //
+                            r("P3l") //
+                    )), //
 
-                rule("P4l", //
-                        first( //
-                                r("P4"), //
-                                r("P3l") //
-                        )), //
+            rule("P3l", //
+                    first( //
+                            r("P3"), //
+                            r("P2l") //
+                    )), //
 
-                rule("P3l", //
-                        first( //
-                                r("P3"), //
-                                r("P2l") //
-                        )), //
+            rule("P2l", //
+                    first( //
+                            r("P2"), //
+                            r("P1l") //
+                    )), //
 
-                rule("P2l", //
-                        first( //
-                                r("P2"), //
-                                r("P1l") //
-                        )), //
+            rule("P1l", //
+                    first( //
+                            r("P1"), //
+                            ast("SYM", r("P0")) //
+                    )), //
 
-                rule("P1l", //
-                        first( //
-                                r("P1"), //
-                                ast("SYM", r("P0")) //
-                        )), //
+            rule("P5", //
+                    seq(r("P5l"), first(ast("PLUS", str(" + ")), ast("MINUS", str(" - "))), r("P4l"))),
 
-                rule("P5", //
-                        seq(r("P5l"), first(ast("PLUS", str(" + ")), ast("MINUS", str(" - "))), r("P4l"))),
+            rule("P4", //
+                    seq(r("P4l"), str(" $ "), r("P3l"))),
 
-                rule("P4", //
-                        seq(r("P4l"), str(" $ "), r("P3l"))),
+            rule("P3", //
+                    seq(r("P3l"), first(ast("MUL", str(" * ")), ast("DIV", str(" / "))), r("P2l"))),
 
-                rule("P3", //
-                        seq(r("P3l"), first(ast("MUL", str(" * ")), ast("DIV", str(" / "))), r("P2l"))),
+            rule("P2", //
+                    seq(r("P2l"), str(" # "), r("P1l"))),
 
-                rule("P2", //
-                        seq(r("P2l"), str(" # "), r("P1l"))),
+            rule("P1", //
+                    first( //
+                            seq(ast("UNARYMINUS", str(" - ")), r("P1l")), // 
+                            seq(c('('), r("P5l"), c(')'))) //
+            ),
 
-                rule("P1", //
-                        first( //
-                                seq(ast("UNARYMINUS", str(" - ")), r("P1l")), // 
-                                seq(c('('), r("P5l"), c(')'))) //
-                ),
+            rule("P0", //
+                    LETTER_OR_DIGIT)
 
-                rule("P0", //
-                        LETTER_OR_DIGIT)
-
-        ));
-
-        return new Parser(grammar, input);
-    }
-
+    ));
 }

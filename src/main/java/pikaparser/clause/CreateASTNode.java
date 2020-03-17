@@ -14,14 +14,15 @@ public class CreateASTNode extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> updatedEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = ruleNodeLabel + ":" + subClauses[0];
+            toStringCached = "(" + getClass().getSimpleName() + " " + ruleNodeLabel + ":" + subClauses[0] + ")";
         }
         return toStringCached;
     }
