@@ -25,7 +25,7 @@ public class ASTNode {
         children.add(child);
     }
 
-    public void printParseTree(String input, String indentStr, boolean isLastChild) {
+    public void printTree(String input, String indentStr, boolean isLastChild) {
         int inpLen = 80;
         String inp = input.substring(startPos, Math.min(input.length(), startPos + Math.min(len, inpLen)));
         if (inp.length() == inpLen) {
@@ -33,18 +33,18 @@ public class ASTNode {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + astLabel + " " + startPos + "+" + len + " \"" + inp + "\"");
+        System.out.println(indentStr + "+-- " + astLabel + " " + startPos + "+" + len + "] : \"" + inp + "\"");
         if (children != null) {
             for (int i = 0; i < children.size(); i++) {
                 var subClauseMatch = children.get(i);
-                subClauseMatch.printParseTree(input, indentStr + (isLastChild ? "    " : "|   "),
+                subClauseMatch.printTree(input, indentStr + (isLastChild ? "    " : "|   "),
                         i == children.size() - 1);
             }
         }
     }
 
-    public void printParseTree(String input) {
-        printParseTree(input, "", true);
+    public void printTree(String input) {
+        printTree(input, "", true);
     }
 
     private void getAllDescendantsNamed(String name, List<ASTNode> termsOut) {

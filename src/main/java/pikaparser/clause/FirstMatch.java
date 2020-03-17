@@ -18,9 +18,6 @@ public class FirstMatch extends Clause {
         }
     }
 
-    public FirstMatch(List<Clause> subClauses) {
-        this(subClauses.toArray(new Clause[0]));
-    }
 
     @Override
     public void testWhetherAlwaysMatches() {

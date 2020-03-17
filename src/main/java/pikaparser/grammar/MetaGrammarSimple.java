@@ -1,62 +1,21 @@
 package pikaparser.grammar;
 
+import static pikaparser.clause.Clause.ast;
+import static pikaparser.clause.Clause.c;
+import static pikaparser.clause.Clause.first;
+import static pikaparser.clause.Clause.r;
+import static pikaparser.clause.Clause.rule;
+import static pikaparser.clause.Clause.seq;
+import static pikaparser.clause.Clause.str;
 
 import java.util.Arrays;
 
-import pikaparser.clause.CharSeq;
 import pikaparser.clause.CharSet;
 import pikaparser.clause.Clause;
-import pikaparser.clause.CreateASTNode;
-import pikaparser.clause.FirstMatch;
-import pikaparser.clause.Nothing;
-import pikaparser.clause.OneOrMore;
-import pikaparser.clause.RuleRef;
-import pikaparser.clause.Seq;
 
 public class MetaGrammarSimple {
 
-    public static Clause rule(String ruleName, Clause clause) {
-        clause.ruleName = ruleName;
-        return clause;
-    }
-
-    public static Clause ast(String astLabel, Clause clause) {
-        return new CreateASTNode(astLabel, clause);
-    }
-
-    public static Clause optional(Clause clause) {
-        return new FirstMatch(clause, new Nothing());
-    }
-
-    public static Clause zeroOrMore(Clause clause) {
-        return optional(new OneOrMore(clause));
-    }
-
-    public static Clause oneOrMore(Clause clause) {
-        return new OneOrMore(clause);
-    }
-
-    public static Clause seq(Clause... clause) {
-        return new Seq(clause);
-    }
-
-    public static Clause first(Clause... clause) {
-        return new FirstMatch(clause);
-    }
-
-    public static Clause r(String ruleName) {
-        return new RuleRef(ruleName);
-    }
-
     public static Clause ws = r("WS");
-
-    public static Clause c(char chr) {
-        return new CharSet(chr);
-    }
-
-    public static Clause str(String str) {
-        return new CharSeq(str, false);
-    }
 
     public static final CharSet WHITESPACE = new CharSet(" \n\r\t");
 

@@ -10,8 +10,7 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public class OneOrMore extends Clause {
-
-    public OneOrMore(Clause subClause) {
+    OneOrMore(Clause subClause) {
         super(new Clause[] { subClause });
     }
 

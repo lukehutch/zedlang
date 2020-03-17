@@ -146,27 +146,10 @@ public class ParserInfo {
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
 
         var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRule);
-        if (topLevelMatches.isEmpty()) {
-            System.out.println("\nRule \"" + topLevelRuleName + "\" did not match anything");
-        } else {
+        if (!topLevelMatches.isEmpty()) {
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
                 getConsumedChars(topLevelMatch, consumedChars);
-            }
-
-            System.out.println("\nFinal matches for rule \"" + topLevelRuleName + "\":");
-            for (int i = 0; i < topLevelMatches.size(); i++) {
-                var topLevelMatch = topLevelMatches.get(i);
-                topLevelMatch.printParseTree(parser.input, "", i == topLevelMatches.size() - 1);
-            }
-
-            System.out.println("" + "\nFinal AST:");
-            for (int i = 0; i < topLevelMatches.size(); i++) {
-                var topLevelMatch = topLevelMatches.get(i);
-                var ast = topLevelMatch.toAST(parser.input);
-                if (ast != null) {
-                    ast.printParseTree(parser.input);
-                }
             }
         }
 
@@ -192,16 +175,30 @@ public class ParserInfo {
         System.out.println();
         printMemoTable(parser, clauseOrder, consumedChars);
 
-        // Print other matches
+        // Print all matches for each clause
         for (Clause clause : parser.grammar.allClauses) {
             var matches = parser.memoTable.getNonOverlappingMatches(clause);
             if (!matches.isEmpty()) {
                 System.out.println("\n====================================\n\nMatches for " + clause + " :");
                 for (int i = 0; i < matches.size(); i++) {
                     System.out.println("\n#");
-                    matches.get(i).printParseTree(parser.input, "", i == matches.size() - 1);
+                    matches.get(i).printTree(parser.input, "", i == matches.size() - 1);
                 }
             }
+        }
+
+        System.out.println(
+                "\n====================================\n\nFinal AST for rule \"" + topLevelRuleName + "\":");
+        if (!topLevelMatches.isEmpty()) {
+            for (int i = 0; i < topLevelMatches.size(); i++) {
+                var topLevelMatch = topLevelMatches.get(i);
+                var ast = topLevelMatch.toAST(parser.input);
+                if (ast != null) {
+                    ast.printTree(parser.input);
+                }
+            }
+        } else {
+            System.out.println("\nRule \"" + topLevelRuleName + "\" did not match anything");
         }
 
         System.out.println("\nNum match objects created: " + parser.memoTable.numMatchObjectsCreated);

@@ -1,10 +1,10 @@
-import static pikaparser.grammar.MetaGrammarSimple.ast;
-import static pikaparser.grammar.MetaGrammarSimple.c;
-import static pikaparser.grammar.MetaGrammarSimple.oneOrMore;
-import static pikaparser.grammar.MetaGrammarSimple.optional;
-import static pikaparser.grammar.MetaGrammarSimple.r;
-import static pikaparser.grammar.MetaGrammarSimple.rule;
-import static pikaparser.grammar.MetaGrammarSimple.seq;
+import static pikaparser.clause.Clause.ast;
+import static pikaparser.clause.Clause.c;
+import static pikaparser.clause.Clause.oneOrMore;
+import static pikaparser.clause.Clause.optional;
+import static pikaparser.clause.Clause.r;
+import static pikaparser.clause.Clause.rule;
+import static pikaparser.clause.Clause.seq;
 
 import java.io.IOException;
 import java.util.Arrays;

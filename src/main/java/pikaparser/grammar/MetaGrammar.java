@@ -1,126 +1,33 @@
 package pikaparser.grammar;
 
+import static pikaparser.clause.Clause.ast;
+import static pikaparser.clause.Clause.c;
+import static pikaparser.clause.Clause.cRange;
+import static pikaparser.clause.Clause.first;
+import static pikaparser.clause.Clause.oneOrMore;
+import static pikaparser.clause.Clause.optional;
+import static pikaparser.clause.Clause.r;
+import static pikaparser.clause.Clause.rule;
+import static pikaparser.clause.Clause.seq;
+import static pikaparser.clause.Clause.start;
+import static pikaparser.clause.Clause.text;
+import static pikaparser.clause.Clause.zeroOrMore;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import pikaparser.clause.CharSeq;
 import pikaparser.clause.CharSet;
 import pikaparser.clause.Clause;
 import pikaparser.clause.CreateASTNode;
-import pikaparser.clause.FirstMatch;
 import pikaparser.clause.FollowedBy;
 import pikaparser.clause.NotFollowedBy;
-import pikaparser.clause.Nothing;
-import pikaparser.clause.OneOrMore;
-import pikaparser.clause.RuleRef;
 import pikaparser.clause.Seq;
-import pikaparser.clause.Start;
 import pikaparser.parser.ASTNode;
 import pikaparser.parser.Parser;
 
 public class MetaGrammar {
-    public static Clause rule(String ruleName, Clause clause) {
-        clause.ruleName = ruleName;
-        return clause;
-    }
-
-    public static Clause ast(String astLabel, Clause clause) {
-        return new CreateASTNode(astLabel, clause);
-    }
-
-    public static Clause start() {
-        return new Start();
-    }
-
-    public static Clause nothing() {
-        return new Nothing();
-    }
-
-    public static Clause optional(Clause clause) {
-        return new FirstMatch(clause, nothing());
-    }
-
-    public static Clause zeroOrMore(Clause clause) {
-        return optional(new OneOrMore(clause));
-    }
-
-    public static Clause oneOrMore(Clause clause) {
-        return new OneOrMore(clause);
-    }
-
-    public static Clause seq(Clause... clause) {
-        return new Seq(clause);
-    }
-
-    public static Clause first(Clause... clause) {
-        return new FirstMatch(clause);
-    }
-
-    public static Clause r(String ruleName) {
-        return new RuleRef(ruleName);
-    }
-
-    public static Clause c(char chr) {
-        return new CharSet(chr);
-    }
-
-    public static Clause cRange(String charRanges) {
-        boolean invert = charRanges.startsWith("^");
-        List<CharSet> charSets = new ArrayList<>();
-        for (int i = invert ? 1 : 0; i < charRanges.length(); i++) {
-            char c = charRanges.charAt(i);
-            if (i <= charRanges.length() - 3 && charRanges.charAt(i + 1) == '-') {
-                char cEnd = charRanges.charAt(i + 2);
-                if (cEnd < c) {
-                    throw new IllegalArgumentException("Char range limits out of order: " + c + ", " + cEnd);
-                }
-                charSets.add(new CharSet(c, cEnd));
-                i += 2;
-            } else {
-                charSets.add(new CharSet(c));
-            }
-        }
-        return charSets.size() == 1 ? charSets.get(0) : new CharSet(charSets);
-    }
-
-    public static Clause text(String str) {
-        return new CharSeq(str, /* ignoreCase = */ false);
-    }
-
-    //    /**
-    //     * <a href="http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java">
-    //     * Valid unicode whitespace chars</a>
-    //     */
-    //    public static final CharSet WHITESPACE = new CharSet(new char[] { (char) 0x0009, // CHARACTER TABULATION
-    //            (char) 0x000A, // LINE FEED (LF)
-    //            (char) 0x000B, // LINE TABULATION
-    //            (char) 0x000C, // FORM FEED (FF)
-    //            (char) 0x000D, // CARRIAGE RETURN (CR)
-    //            (char) 0x0020, // SPACE
-    //            (char) 0x0085, // NEXT LINE (NEL) 
-    //            (char) 0x00A0, // NO-BREAK SPACE
-    //            (char) 0x1680, // OGHAM SPACE MARK
-    //            (char) 0x180E, // MONGOLIAN VOWEL SEPARATOR
-    //            (char) 0x2000, // EN QUAD 
-    //            (char) 0x2001, // EM QUAD 
-    //            (char) 0x2002, // EN SPACE
-    //            (char) 0x2003, // EM SPACE
-    //            (char) 0x2004, // THREE-PER-EM SPACE
-    //            (char) 0x2005, // FOUR-PER-EM SPACE
-    //            (char) 0x2006, // SIX-PER-EM SPACE
-    //            (char) 0x2007, // FIGURE SPACE
-    //            (char) 0x2008, // PUNCTUATION SPACE
-    //            (char) 0x2009, // THIN SPACE
-    //            (char) 0x200A, // HAIR SPACE
-    //            (char) 0x2028, // LINE SEPARATOR
-    //            (char) 0x2029, // PARAGRAPH SEPARATOR
-    //            (char) 0x202F, // NARROW NO-BREAK SPACE
-    //            (char) 0x205F, // MEDIUM MATHEMATICAL SPACE
-    //            (char) 0x3000 // IDEOGRAPHIC SPACE
-    //    });
-
     // Rule names:
 
     private static final String GRAMMAR = "Grammar";
@@ -170,7 +77,7 @@ public class MetaGrammar {
     public static final CharSet DIGIT = new CharSet('0', '9');
 
     // Toplevel rule for lex preprocessing (use null to disable lexing)
-    
+
     public static final String LEX_RULE_NAME = LEX;
 
     public static Grammar grammar = new Grammar(LEX_RULE_NAME, Arrays.asList(//
@@ -372,10 +279,10 @@ public class MetaGrammar {
             clause = new Seq(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
             break;
         case ONE_OR_MORE_AST:
-            clause = new OneOrMore(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
+            clause = oneOrMore(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
             break;
         case FIRST_MATCH_AST:
-            clause = new FirstMatch(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
+            clause = first(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
             break;
         case FOLLOWED_BY_AST:
             clause = new FollowedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));

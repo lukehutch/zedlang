@@ -20,7 +20,7 @@ public class Parser {
 
     public final MemoTable memoTable = new MemoTable();
 
-    private static final boolean PARALLELIZE = false; // TODO
+    private static final boolean PARALLELIZE = true;
 
     public Parser(Grammar grammar, String input) {
         this.grammar = grammar;

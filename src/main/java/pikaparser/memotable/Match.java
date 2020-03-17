@@ -121,7 +121,7 @@ public class Match implements Comparable<Match> {
         return root;
     }
 
-    public void printParseTree(String input, String indentStr, boolean isLastChild) {
+    public void printTree(String input, String indentStr, boolean isLastChild) {
         int inpLen = 80;
         String inp = input.substring(memoKey.startPos,
                 Math.min(input.length(), memoKey.startPos + Math.min(len, inpLen)));
@@ -135,14 +135,14 @@ public class Match implements Comparable<Match> {
         if (subClauseMatches != null) {
             for (int i = 0; i < subClauseMatches.length; i++) {
                 var subClauseMatch = subClauseMatches[i];
-                subClauseMatch.printParseTree(input, indentStr + (isLastChild ? "    " : "|   "),
+                subClauseMatch.printTree(input, indentStr + (isLastChild ? "    " : "|   "),
                         i == subClauseMatches.length - 1);
             }
         }
     }
 
-    public void printParseTree(String input) {
-        printParseTree(input, "", true);
+    public void printTree(String input) {
+        printTree(input, "", true);
     }
 
     @Override
