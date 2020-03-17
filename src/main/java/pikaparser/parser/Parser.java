@@ -6,23 +6,27 @@ import java.util.concurrent.ConcurrentHashMap;
 import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
-import pikaparser.memotable.Match;
+import pikaparser.grammar.Grammar;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class Parser {
 
     public final String input;
 
-    public Grammar grammar;
+    public final Grammar grammar;
 
-    private static final boolean PARALLELIZE = false;
+    public final MemoTable memoTable = new MemoTable();
+
+    private static final boolean PARALLELIZE = true;
 
     public Parser(Grammar grammar, String input) {
         this.grammar = grammar;
         this.input = input;
 
-        var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
-        var memoEntriesWithNewMatches = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
+        var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
+        var newMatchMemoEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
 
         // Find positions that all terminals match, and create the initial active set from parents of terminals
         (PARALLELIZE ? grammar.allClauses.parallelStream() : grammar.allClauses.stream()).forEach(clause -> {
@@ -31,14 +35,14 @@ public class Parser {
             if (clause instanceof Terminal && !(clause instanceof Nothing)) {
                 // Terminals are matched top down, to avoid creating memo table entries for them
                 for (int startPos = 0; startPos < input.length(); startPos++) {
-                    var memoEntry = new MemoEntry(clause, startPos);
-                    var match = memoEntry.match(input);
+                    var memoKey = new MemoKey(clause, startPos);
+                    var match = memoKey.clause.match(memoTable, memoKey, input, newMatchMemoEntries);
                     if (match != null) {
                         for (Clause seedParentClause : clause.seedParentClauses) {
                             // Add parent clause to active set. This will cause the terminal to be
                             // evaluated again top-down by the parent clause, but avoids creating a memo
                             // table entry for the terminal.
-                            activeSet.add(seedParentClause.getOrCreateMemoEntry(startPos));
+                            activeSet.add(new MemoKey(seedParentClause, startPos));
                         }
                     }
                 }
@@ -47,32 +51,25 @@ public class Parser {
 
         // Main parsing loop
         while (!activeSet.isEmpty()) {
-            //            System.out.println("\nActive set:");
 
-            (PARALLELIZE ? activeSet.parallelStream() : activeSet.stream()).forEach(memoEntry -> {
-                // Match each MemoEntry in activeSet, populating memoEntriesWithNewMatches
-                //                System.out.println("  " + memoEntry);
-                Match newMatch = memoEntry.match(input);
-                if (newMatch != null) {
-                    memoEntry.newMatches.add(newMatch);
-                    memoEntriesWithNewMatches.add(memoEntry);
-                }
-            });
+            // For each MemoKey in activeSet, try finding a match, and add matches to newMatches
+            (PARALLELIZE ? activeSet.parallelStream() : activeSet.stream()) //
+                    .forEach(memoKey -> {
+                        memoKey.clause.match(memoTable, memoKey, input, newMatchMemoEntries);
+                    });
 
             // Clear the active set for the next round
             activeSet.clear();
 
-            //            System.out.println("\nMemo entries with new best match:");
-            (PARALLELIZE ? memoEntriesWithNewMatches.parallelStream() : memoEntriesWithNewMatches.stream())
-                    // For each MemoEntry in memoEntriesWithNewMatches, find best new match, and if the match 
-                    // improves, add the MemoEntry to the active set for the next round
+            // For each MemoEntry in newMatches, find best new match, and if the match 
+            // improves, add the MemoEntry to activeSet for the next round
+            (PARALLELIZE ? newMatchMemoEntries.parallelStream() : newMatchMemoEntries.stream()) //
                     .forEach(memoEntry -> {
-                        //                        System.out.println("  " + memoEntry);
-                        memoEntry.updateBestMatch(input, activeSet);
+                        memoEntry.updateBestMatch(memoTable, input, activeSet);
                     });
 
             // Clear memoEntriesWithNewMatches for the next round
-            memoEntriesWithNewMatches.clear();
+            newMatchMemoEntries.clear();
         }
     }
 }

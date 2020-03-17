@@ -2,9 +2,12 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class OneOrMore extends Clause {
 
@@ -20,13 +23,13 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
         var subClause = subClauses[0];
-        var subClauseMatches = (List<Match>) null;
-        var currStartPos = memoEntry.startPos;
+        List<Match> subClauseMatches = null;
+        var currStartPos = memoKey.startPos;
         for (;;) {
-            var subClauseMatch = subClause.lookUpBestMatch(/* parentMemoEntry = */ memoEntry,
-                    /* subClauseStartPos = */ currStartPos, input);
+            var subClauseMatch = memoTable.lookUpBestMatch(memoKey, new MemoKey(subClause, currStartPos), input,
+                    newMatchMemoEntries);
             if (subClauseMatch == null) {
                 break;
             }
@@ -41,13 +44,19 @@ public class OneOrMore extends Clause {
             }
             currStartPos += subClauseMatch.len;
         }
-        return subClauseMatches != null ? new Match(this, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches) : null;
+        return subClauseMatches == null ? null
+                : memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0,
+                        subClauseMatches.toArray(Match.NO_SUBCLAUSE_MATCHES), newMatchMemoEntries);
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = subClauses[0] + "+";
+            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
+                    + (subClauseASTNodeLabels != null && subClauseASTNodeLabels[0] != null
+                            ? subClauseASTNodeLabels[0] + ':'
+                            : "") //
+                    + subClauses[0] + "+";
         }
         return toStringCached;
     }

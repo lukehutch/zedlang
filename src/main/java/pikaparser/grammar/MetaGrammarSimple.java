@@ -1,26 +1,27 @@
-package pikaparser.parser;
+package pikaparser.grammar;
 
 import java.util.Arrays;
 
 import pikaparser.clause.CharSeq;
 import pikaparser.clause.CharSet;
 import pikaparser.clause.Clause;
+import pikaparser.clause.CreateASTNode;
 import pikaparser.clause.FirstMatch;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.OneOrMore;
-import pikaparser.clause.RuleName;
+import pikaparser.clause.RuleRef;
 import pikaparser.clause.Seq;
+import pikaparser.parser.Parser;
 
 public class MetaGrammarSimple {
 
-    public static Clause rule(String name, Clause clause) {
-        clause.addRuleName(name);
+    public static Clause rule(String ruleName, Clause clause) {
+        clause.ruleName = ruleName;
         return clause;
     }
 
     public static Clause ast(String astLabel, Clause clause) {
-        clause.setLabel(astLabel);
-        return clause;
+        return new CreateASTNode(astLabel, clause);
     }
 
     public static Clause optional(Clause clause) {
@@ -44,7 +45,7 @@ public class MetaGrammarSimple {
     }
 
     public static Clause r(String ruleName) {
-        return new RuleName(ruleName);
+        return new RuleRef(ruleName);
     }
 
     public static Clause ws = r("WS");

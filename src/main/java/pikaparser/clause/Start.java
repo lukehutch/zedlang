@@ -1,7 +1,11 @@
 package pikaparser.clause;
 
+import java.util.Set;
+
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 /**
  * Always use this rule at the start of the toplevel rule -- it will trigger parsing even if the rest of the subclauses
@@ -12,7 +16,6 @@ import pikaparser.memotable.MemoEntry;
  * Start, the toplevel rule "G = (^ WS R+)" will only match R once, after any initial whitespace.
  */
 public class Start extends Terminal {
-
     public static final String START_STR = "^";
 
     public Start() {
@@ -20,15 +23,21 @@ public class Start extends Terminal {
     }
 
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
-        // Match zero characters, and only at beginning of input
-        return memoEntry.startPos == 0 ? new Match(this, memoEntry.startPos, 0) : null;
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+        // Match zero characters at beginning of input
+        if (memoKey.startPos == 0) {
+            // Because terminals are matched top-down, don't call MemoTable.addMatch for terminals
+            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
+                    Match.NO_SUBCLAUSE_MATCHES);
+        }
+        return null;
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = START_STR;
+            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
+                    + "[Start]";
         }
         return toStringCached;
     }

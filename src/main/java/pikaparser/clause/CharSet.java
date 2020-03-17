@@ -8,6 +8,8 @@ import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class CharSet extends Terminal {
 
@@ -62,10 +64,13 @@ public class CharSet extends Terminal {
     }
 
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
-        return memoEntry.startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(memoEntry.startPos)))
-                ? new Match(this, memoEntry.startPos, 1)
-                : null;
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+        if (memoKey.startPos < input.length() && (invertMatch ^ charSet.contains(input.charAt(memoKey.startPos)))) {
+            // Because terminals are matched top-down, don't call MemoTable.addMatch for terminals
+            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1,
+                    Match.NO_SUBCLAUSE_MATCHES);
+        }
+        return null;
     }
 
     // TODO: fix the escaping
@@ -112,9 +117,10 @@ public class CharSet extends Terminal {
                 }
             }
             String s = buf.toString();
-            toStringCached = (!invertMatch && s.length() == 1 && s.charAt(0) >= 32 && s.charAt(0) <= 126) //
-                    ? "'" + s + "'" //
-                    : "[" + s + "]";
+            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
+                    + ((!invertMatch && s.length() == 1 && s.charAt(0) >= 32 && s.charAt(0) <= 126) //
+                            ? "'" + s + "'" //
+                            : "[" + s + "]");
         }
         return toStringCached;
     }

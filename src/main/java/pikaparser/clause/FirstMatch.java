@@ -2,9 +2,12 @@ package pikaparser.clause;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class FirstMatch extends Clause {
 
@@ -36,13 +39,14 @@ public class FirstMatch extends Clause {
     }
 
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
-            var subClauseMatch = subClause.lookUpBestMatch(/* parentMemoEntry = */ memoEntry,
-                    /* subClauseStartPos = */ memoEntry.startPos, input);
+            var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
+            var subClauseMatch = memoTable.lookUpBestMatch(memoKey, subClauseMemoKey, input, newMatchMemoEntries);
             if (subClauseMatch != null) {
-                return new Match(this, subClauseIdx, subClauseMatch);
+                return memoTable.addMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch },
+                        newMatchMemoEntries);
             }
         }
         return null;
@@ -52,10 +56,18 @@ public class FirstMatch extends Clause {
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
+            if (ruleNodeLabel != null) {
+                buf.append(ruleNodeLabel);
+                buf.append(':');
+            }
             buf.append('(');
             for (int i = 0; i < subClauses.length; i++) {
                 if (i > 0) {
                     buf.append(" | ");
+                }
+                if (subClauseASTNodeLabels != null && subClauseASTNodeLabels[i] != null) {
+                    buf.append(subClauseASTNodeLabels[i]);
+                    buf.append(':');
                 }
                 buf.append(subClauses[i].toString());
             }

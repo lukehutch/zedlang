@@ -2,24 +2,27 @@ package pikaparser.parser;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
 
 public class ParserInfo {
 
     private static void getConsumedChars(Match match, BitSet consumedChars) {
-        for (int i = match.startPos, ii = match.startPos + match.len; i < ii; i++) {
+        for (int i = match.memoKey.startPos, ii = match.memoKey.startPos + match.len; i < ii; i++) {
             consumedChars.set(i);
         }
-        List<Match> subClauseMatches = match.subClauseMatches;
+        Match[] subClauseMatches = match.subClauseMatches;
         if (subClauseMatches != null) {
-            for (int i = 0; i < subClauseMatches.size(); i++) {
-                Match subClauseMatch = subClauseMatches.get(i);
+            for (int i = 0; i < subClauseMatches.length; i++) {
+                Match subClauseMatch = subClauseMatches[i];
                 getConsumedChars(subClauseMatch, consumedChars);
             }
         }
@@ -33,16 +36,13 @@ public class ParserInfo {
             buf[i] = new StringBuilder();
             buf[i].append(String.format("%3d", i) + " : ");
             Clause clause = clauseOrder.get(i);
-            if (clause == parser.grammar.topLevelClause) {
-                buf[i].append("<toplevel> ");
-            }
             if (clause instanceof Terminal) {
                 buf[i].append("<terminal> ");
             }
             if (clause.alwaysMatches) {
                 buf[i].append("<alwaysMatches> ");
             }
-            buf[i].append(clause.toStringWithRuleNames());
+            buf[i].append(clause.toStringWithRuleNamesAndLabels());
             marginWidth = Math.max(marginWidth, buf[i].length() + 2);
         }
         int tableWidth = marginWidth + input.length() + 1;
@@ -58,28 +58,31 @@ public class ParserInfo {
             Clause clause = clauseOrder.get(i);
             if (clause instanceof Terminal) {
                 // Terminals are not memoized -- have to render them directly
+                Set<MemoEntry> set = new HashSet<>();
                 for (int j = 0; j <= input.length(); j++) {
-                    Match match = new MemoEntry(clause, j).match(input);
+                    Match match = clause.match(parser.memoTable, new MemoKey(clause, j), input, set);
                     if (match != null) {
                         buf[i].setCharAt(marginWidth + j, '#');
-                        for (int k = 1; k < match.len; k++) {
-                            buf[i].setCharAt(marginWidth + j + k, '=');
+                        if (match.len > 1) {
+                            for (int k = 1; k < match.len; k++) {
+                                buf[i].setCharAt(marginWidth + j + k, '=');
+                            }
+                            j += match.len - 1;
                         }
-                        j += match.len - 1;
                     }
                 }
             } else {
                 // Render non-matches
-                for (var startPos : clause.getNonMatches()) {
+                for (var startPos : parser.memoTable.getNonMatchPositions(clause)) {
                     if (startPos <= input.length()) {
                         buf[i].setCharAt(marginWidth + startPos, 'x');
                     }
                 }
                 // Render matches
-                for (var match : clause.getNonOverlappingMatches()) {
-                    if (match.startPos <= input.length()) {
-                        buf[i].setCharAt(marginWidth + match.startPos, '#');
-                        for (int j = match.startPos + 1; j < match.startPos + match.len; j++) {
+                for (var match : parser.memoTable.getNonOverlappingMatches(clause)) {
+                    if (match.memoKey.startPos <= input.length()) {
+                        buf[i].setCharAt(marginWidth + match.memoKey.startPos, '#');
+                        for (int j = match.memoKey.startPos + 1; j < match.memoKey.startPos + match.len; j++) {
                             if (j <= input.length()) {
                                 buf[i].setCharAt(marginWidth + j, '=');
                             }
@@ -125,22 +128,26 @@ public class ParserInfo {
         //        }
     }
 
-    public static void printParseResult(Parser parser) {
+    public static void printParseResult(Parser parser, String topLevelRuleName) {
+        Clause topLevelRule = parser.grammar.ruleNameToRule.get(topLevelRuleName);
+        if (topLevelRule == null) {
+            throw new IllegalArgumentException("No clause named \"" + topLevelRuleName + "\"");
+        }
+
         // Print parse tree, and find which characters were consumed and which weren't
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
 
-        var topLevelMatches = parser.grammar.topLevelClause.getNonOverlappingMatches();
+        var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRule);
         if (topLevelMatches.isEmpty()) {
-            System.out.println("\nToplevel rule did not match");
+            System.out.println("\nRule \"" + topLevelRuleName + "\" did not match anything");
         } else {
-            System.out.println("\nFinal toplevel matches:");
+            System.out.println("\nFinal matches for rule \"" + topLevelRuleName + "\":");
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
                 topLevelMatch.printParseTree(parser.input, "", i == topLevelMatches.size() - 1);
             }
 
-            System.out.println(""
-                    + "\nFinal AST:");
+            System.out.println("" + "\nFinal AST:");
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
                 var ast = topLevelMatch.toAST(parser.input);

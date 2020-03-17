@@ -1,6 +1,7 @@
 import java.io.IOException;
 
-import pikaparser.parser.MetaGrammar;
+import pikaparser.grammar.Grammar;
+import pikaparser.grammar.MetaGrammar;
 import pikaparser.parser.Parser;
 import pikaparser.parser.ParserInfo;
 
@@ -14,7 +15,14 @@ public class TestMetaGrammar {
 
         Parser metaParser = MetaGrammar.newParser(zedGrammar);
 
-        ParserInfo.printParseResult(metaParser);
+        ParserInfo.printParseResult(metaParser, "Grammar");
+
+        Grammar grammar = MetaGrammar.parseGrammar(metaParser);
+
+        System.out.println("Parsed grammar:");
+        for (var clause : grammar.allClauses) {
+            System.out.println("    " + clause.toStringWithRuleNamesAndLabels() + ";");
+        }
     }
 
 }

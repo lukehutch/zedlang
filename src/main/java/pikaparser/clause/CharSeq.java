@@ -1,7 +1,11 @@
 package pikaparser.clause;
 
+import java.util.Set;
+
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class CharSeq extends Terminal {
 
@@ -15,17 +19,24 @@ public class CharSeq extends Terminal {
     }
 
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
-        return memoEntry.startPos < input.length() - str.length()
-                && input.regionMatches(ignoreCase, memoEntry.startPos, str, 0, str.length())
-                        ? new Match(this, memoEntry.startPos, str.length())
-                        : null;
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+        if (memoKey.startPos < input.length() - str.length()
+                && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
+            // Because terminals are matched top-down, don't call MemoTable.addMatch for terminals
+            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, str.length(),
+                    Match.NO_SUBCLAUSE_MATCHES);
+        }
+        return null;
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
+            if (ruleNodeLabel != null) {
+                buf.append(ruleNodeLabel);
+                buf.append(':');
+            }
             buf.append('"');
             for (int i = 0; i < str.length(); i++) {
                 char c = str.charAt(i);

@@ -2,9 +2,12 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class Seq extends Clause {
 
@@ -45,37 +48,43 @@ public class Seq extends Clause {
     }
 
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
-        var subClauseMatches = (List<Match>) null;
-        var currStartPos = memoEntry.startPos;
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+        Match[] subClauseMatches = null;
+        var currStartPos = memoKey.startPos;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
-            var subClauseMatch = subClause.lookUpBestMatch(/* parentMemoEntry = */ memoEntry,
-                    /* subClauseStartPos = */ currStartPos, input);
+            var subClauseMatch = memoTable.lookUpBestMatch(memoKey, new MemoKey(subClause, currStartPos), input,
+                    newMatchMemoEntries);
             if (subClauseMatch == null) {
+                // Fail after first subclause fails to match
                 return null;
             }
             if (subClauseMatches == null) {
-                subClauseMatches = new ArrayList<>(subClauses.length);
+                subClauseMatches = new Match[subClauses.length];
             }
-            subClauseMatches.add(subClauseMatch);
+            subClauseMatches[subClauseIdx] = subClauseMatch;
             currStartPos += subClauseMatch.len;
         }
-        if (subClauseMatches == null) {
-            // Should not happen, because Seq constructor requires at least 2 subclauses
-            throw new IllegalArgumentException("No subclauses");
-        }
-        return new Match(this, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches);
+        return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches,
+                newMatchMemoEntries);
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
+            if (ruleNodeLabel != null) {
+                buf.append(ruleNodeLabel);
+                buf.append(':');
+            }
             buf.append('(');
             for (int i = 0; i < subClauses.length; i++) {
                 if (i > 0) {
                     buf.append(" ");
+                }
+                if (subClauseASTNodeLabels != null && subClauseASTNodeLabels[i] != null) {
+                    buf.append(subClauseASTNodeLabels[i]);
+                    buf.append(':');
                 }
                 buf.append(subClauses[i].toString());
             }

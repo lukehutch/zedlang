@@ -1,26 +1,19 @@
 package pikaparser.memotable;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import pikaparser.clause.Clause;
 import pikaparser.clause.FirstMatch;
+import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
 public class Match implements Comparable<Match> {
-
-    /** The matching {@link Clause}. */
-    public Clause clause;
-
-    /** The start position of the match. */
-    public int startPos;
+    /** The {@link MemoKey}. */
+    public final MemoKey memoKey;
 
     /** The length of the match. */
-    public int len;
+    public final int len;
 
     /** The subclause matches. */
-    public List<Match> subClauseMatches;
+    public final Match[] subClauseMatches;
 
     /**
      * The subclause index of the first matching subclause (will be 0 unless {@link #clause} is a {@link FirstMatch},
@@ -28,32 +21,13 @@ public class Match implements Comparable<Match> {
      */
     public int firstMatchingSubClauseIdx;
 
-    public Match(Clause clause, int firstMatchingSubClauseIdx, Match... subClauseMatches) {
-        this.clause = clause;
-        this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
-        this.startPos = subClauseMatches[0].startPos;
-        for (Match subClauseMatch : subClauseMatches) {
-            this.len += subClauseMatch.len;
-        }
-        this.subClauseMatches = Arrays.asList(subClauseMatches);
-    }
+    public static final Match[] NO_SUBCLAUSE_MATCHES = new Match[0];
 
-    public Match(Clause clause, int firstMatchingSubClauseIdx, List<Match> subClauseMatches) {
-        this.clause = clause;
+    public Match(MemoKey memoKey, int firstMatchingSubClauseIdx, int len, Match[] subClauseMatches) {
+        this.memoKey = memoKey;
         this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
-        this.startPos = subClauseMatches.get(0).startPos;
-        for (Match subClauseMatch : subClauseMatches) {
-            this.len += subClauseMatch.len;
-        }
-        this.subClauseMatches = subClauseMatches;
-    }
-
-    public Match(Clause clause, int startPos, int len) {
-        this.clause = clause;
-        this.firstMatchingSubClauseIdx = 0;
-        this.startPos = startPos;
         this.len = len;
-        this.subClauseMatches = Collections.emptyList();
+        this.subClauseMatches = subClauseMatches;
     }
 
     /**
@@ -78,7 +52,7 @@ public class Match implements Comparable<Match> {
         //            return diff0;
         //        }
         //        // Compare number of matching subclauses (more matching subclauses wins over fewer, e.g. for OneOrMore)
-        //        int diff1 = o.subClauseMatches.size() - this.subClauseMatches.size();
+        //        int diff1 = o.subClauseMatches.length - this.subClauseMatches.length;
         //        if (diff1 != 0) {
         //            return diff1;
         //        }
@@ -92,8 +66,8 @@ public class Match implements Comparable<Match> {
         // A longer overall match (i.e. a match that spans more characters in the input) wins over a shorter match
         // (but need to ensure this at the subclause level -- ensure that every subclause in the longer match is
         // the same length as or longer than every subclause in the shorter match).
-        for (int i = 0, ii = Math.min(this.subClauseMatches.size(), o.subClauseMatches.size()); i < ii; i++) {
-            int diff1 = o.subClauseMatches.get(i).len - this.subClauseMatches.get(i).len;
+        for (int i = 0, ii = Math.min(this.subClauseMatches.length, o.subClauseMatches.length); i < ii; i++) {
+            int diff1 = o.subClauseMatches[i].len - this.subClauseMatches[i].len;
             if (diff1 != 0) {
                 return diff1;
             }
@@ -104,58 +78,65 @@ public class Match implements Comparable<Match> {
         }
 
         // Recursively compare subclause matches (do this as a last resort to try to avoid O(N) scaling)
-        for (int i = 0, ii = Math.min(this.subClauseMatches.size(), o.subClauseMatches.size()); i < ii; i++) {
-            int diff3 = this.subClauseMatches.get(i).compareTo(o.subClauseMatches.get(i));
+        for (int i = 0, ii = Math.min(this.subClauseMatches.length, o.subClauseMatches.length); i < ii; i++) {
+            // TODO: make this non-recursive
+            int diff3 = this.subClauseMatches[i].compareTo(o.subClauseMatches[i]);
             if (diff3 != 0) {
                 return diff3;
             }
         }
 
         // A longer list of subclause matches wins over a shorter list of subclause matches
-        return this.subClauseMatches.size() - o.subClauseMatches.size();
+        return o.subClauseMatches.length - this.subClauseMatches.length;
     }
 
     public String getText(String input) {
-        return input.substring(startPos, len);
+        return input.substring(memoKey.startPos, memoKey.startPos + len);
     }
 
     private void toAST(ASTNode parent, String input) {
-        ASTNode currParent = parent;
-        if (clause.label != null) {
-            // Labeled nodes become nodes of the final AST
-            var newASTNode = new ASTNode(clause.label, clause, startPos, len);
-            parent.addChild(newASTNode);
-            currParent = newASTNode;
-        }
+        ASTNode currParent0 = parent;
         // Recurse to descendants
-        for (int i = 0; i < subClauseMatches.size(); i++) {
-            // var subClauseIdx = (clause instanceof OneOrMore ? 0 : i) + firstMatchingSubClauseIdx;
-            var subClauseMatch = subClauseMatches.get(i);
-            subClauseMatch.toAST(currParent, input);
+        for (int i = 0; i < subClauseMatches.length; i++) {
+            var subClauseMatch = subClauseMatches[i];
+            var subClauseASTNodeLabel = memoKey.clause.subClauseASTNodeLabels == null ? null
+                    : memoKey.clause.subClauseASTNodeLabels[firstMatchingSubClauseIdx + i];
+            ASTNode currParent1 = currParent0;
+            if (subClauseASTNodeLabel != null) {
+                // Create an AST node for any labeled sub-clauses
+                var newASTNode = new ASTNode(subClauseASTNodeLabel, subClauseMatch.memoKey.clause,
+                        subClauseMatch.memoKey.startPos, subClauseMatch.len);
+                currParent0.addChild(newASTNode);
+                currParent1 = newASTNode;
+            }
+            subClauseMatch.toAST(currParent1, input);
         }
     }
 
     public ASTNode toAST(String input) {
-        ASTNode root = new ASTNode("<root>", clause, startPos, len);
+        // If root clause is labeled, use label as name. Otherwise labels will be added only from subclauses.
+        var rootNodeLabel = memoKey.clause.ruleNodeLabel != null ? memoKey.clause.ruleNodeLabel : "<root>";
+        var root = new ASTNode(rootNodeLabel, memoKey.clause, memoKey.startPos, len);
         toAST(root, input);
         return root;
     }
 
     public void printParseTree(String input, String indentStr, boolean isLastChild) {
         int inpLen = 80;
-        String inp = input.substring(startPos, Math.min(input.length(), startPos + Math.min(len, inpLen)));
+        String inp = input.substring(memoKey.startPos,
+                Math.min(input.length(), memoKey.startPos + Math.min(len, inpLen)));
         if (inp.length() == inpLen) {
             inp += "...";
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + clause.toStringWithRuleNames() + " : " + startPos + "+" + len + " \""
-                + inp + "\"");
+        System.out.println(indentStr + "+-- " + memoKey.clause.toStringWithRuleNamesAndLabels() + " : "
+                + memoKey.startPos + "+" + len + " \"" + inp + "\"");
         if (subClauseMatches != null) {
-            for (int i = 0; i < subClauseMatches.size(); i++) {
-                var subClauseMatch = subClauseMatches.get(i);
+            for (int i = 0; i < subClauseMatches.length; i++) {
+                var subClauseMatch = subClauseMatches[i];
                 subClauseMatch.printParseTree(input, indentStr + (isLastChild ? "    " : "|   "),
-                        i == subClauseMatches.size() - 1);
+                        i == subClauseMatches.length - 1);
             }
         }
     }
@@ -167,9 +148,10 @@ public class Match implements Comparable<Match> {
     @Override
     public String toString() {
         StringBuilder buf = new StringBuilder();
-        buf.append(clause.toStringWithRuleNames() + " : " + startPos + "+" + len + " => [ ");
-        for (int i = 0; i < subClauseMatches.size(); i++) {
-            var s = subClauseMatches.get(i);
+        buf.append(
+                memoKey.clause.toStringWithRuleNamesAndLabels() + " : " + memoKey.startPos + "+" + len + " => [ ");
+        for (int i = 0; i < subClauseMatches.length; i++) {
+            var s = subClauseMatches[i];
             if (i > 0) {
                 buf.append(" ; ");
             }

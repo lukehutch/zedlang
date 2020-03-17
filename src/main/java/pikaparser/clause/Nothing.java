@@ -1,10 +1,13 @@
 package pikaparser.clause;
 
+import java.util.Set;
+
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class Nothing extends Terminal {
-
     public static final String NOTHING_STR = "()";
 
     public Nothing() {
@@ -16,15 +19,18 @@ public class Nothing extends Terminal {
         alwaysMatches = true;
     }
 
+    // (This shouldn't be called under normal circumstances.)
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
-        return new Match(this, 0, 0);
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+        // Because terminals are matched top-down, don't call MemoTable.addMatch for terminals
+        return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = NOTHING_STR;
+            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
+                    + NOTHING_STR;
         }
         return toStringCached;
     }

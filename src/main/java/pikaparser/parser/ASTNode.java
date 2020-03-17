@@ -1,4 +1,4 @@
-package pikaparser.memotable;
+package pikaparser.parser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,14 +7,14 @@ import pikaparser.clause.Clause;
 
 public class ASTNode {
 
-    public final String nodeName;
+    public final String astLabel;
     public final int startPos;
     public final int len;
     public final List<ASTNode> children;
     public final Clause nodeType;
 
     public ASTNode(String nodeName, Clause nodeType, int startPos, int len) {
-        this.nodeName = nodeName;
+        this.astLabel = nodeName;
         this.nodeType = nodeType;
         this.startPos = startPos;
         this.len = len;
@@ -24,7 +24,7 @@ public class ASTNode {
     public void addChild(ASTNode child) {
         children.add(child);
     }
-    
+
     public void printParseTree(String input, String indentStr, boolean isLastChild) {
         int inpLen = 80;
         String inp = input.substring(startPos, Math.min(input.length(), startPos + Math.min(len, inpLen)));
@@ -33,7 +33,7 @@ public class ASTNode {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + nodeName + " " + startPos + "+" + len + " \"" + inp + "\"");
+        System.out.println(indentStr + "+-- " + astLabel + " " + startPos + "+" + len + " \"" + inp + "\"");
         if (children != null) {
             for (int i = 0; i < children.size(); i++) {
                 var subClauseMatch = children.get(i);
@@ -48,7 +48,7 @@ public class ASTNode {
     }
 
     private void getAllDescendantsNamed(String name, List<ASTNode> termsOut) {
-        if (nodeName.equals(name)) {
+        if (astLabel.equals(name)) {
             termsOut.add(this);
         } else {
             for (ASTNode child : children) {
@@ -64,7 +64,7 @@ public class ASTNode {
     }
 
     public ASTNode getFirstDescendantNamed(String name) {
-        if (nodeName.equals(name)) {
+        if (astLabel.equals(name)) {
             return this;
         } else {
             for (ASTNode child : children) {
@@ -93,6 +93,6 @@ public class ASTNode {
     }
 
     public String getText(String input) {
-        return input.substring(startPos, len);
+        return input.substring(startPos, startPos + len);
     }
 }

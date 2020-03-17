@@ -1,7 +1,11 @@
 package pikaparser.clause;
 
+import java.util.Set;
+
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
+import pikaparser.memotable.MemoKey;
+import pikaparser.memotable.MemoTable;
 
 public class FollowedBy extends Clause {
 
@@ -17,17 +21,26 @@ public class FollowedBy extends Clause {
     }
 
     @Override
-    public Match match(MemoEntry memoEntry, String input) {
-        var subClauseMatch = subClauses[0].lookUpBestMatch(/* parentMemoEntry = */ memoEntry,
-                /* subClauseStartPos = */ memoEntry.startPos, input);
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+        var subClauseMatch = memoTable.lookUpBestMatch(memoKey, new MemoKey(subClauses[0], memoKey.startPos), input,
+                newMatchMemoEntries);
         // Replace any valid subclause match with a zero-char-consuming match
-        return subClauseMatch == null ? null : new Match(this, memoEntry.startPos, /* len = */ 0);
+        if (subClauseMatch != null) {
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, new Match[] { subClauseMatch },
+                    newMatchMemoEntries);
+        }
+        return null;
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = "&(" + subClauses[0] + ")";
+            toStringCached = (ruleNodeLabel != null ? ruleNodeLabel + ':' : "") //
+                    + "&(" //
+                    + (subClauseASTNodeLabels != null && subClauseASTNodeLabels[0] != null
+                            ? subClauseASTNodeLabels[0] + ':'
+                            : "")
+                    + subClauses[0] + ")";
         }
         return toStringCached;
     }

@@ -1,16 +1,16 @@
-import static pikaparser.parser.MetaGrammarSimple.c;
-import static pikaparser.parser.MetaGrammarSimple.oneOrMore;
-import static pikaparser.parser.MetaGrammarSimple.optional;
-import static pikaparser.parser.MetaGrammarSimple.r;
-import static pikaparser.parser.MetaGrammarSimple.rule;
-import static pikaparser.parser.MetaGrammarSimple.seq;
-import static pikaparser.parser.MetaGrammarSimple.str;
+import static pikaparser.grammar.MetaGrammarSimple.ast;
+import static pikaparser.grammar.MetaGrammarSimple.c;
+import static pikaparser.grammar.MetaGrammarSimple.oneOrMore;
+import static pikaparser.grammar.MetaGrammarSimple.optional;
+import static pikaparser.grammar.MetaGrammarSimple.r;
+import static pikaparser.grammar.MetaGrammarSimple.rule;
+import static pikaparser.grammar.MetaGrammarSimple.seq;
 
 import java.io.IOException;
 import java.util.Arrays;
 
 import pikaparser.clause.CharSet;
-import pikaparser.parser.Grammar;
+import pikaparser.grammar.Grammar;
 import pikaparser.parser.Parser;
 import pikaparser.parser.ParserInfo;
 
@@ -38,15 +38,16 @@ public class Test {
             // String grammarStr = "a + b + c - d - e + f + g - h - i + j - k";
             // String grammarStr = "a + b + c * d - e - ((x + y) + (p + f) + g) + h - i / j / k";
             // String grammarStr = "a + b - c + d - e -  - x - y";
-            String grammarStr = "x=x:yz";
+            String grammarStr = "a=x:yz";
 
             // Parser parser = MetaGrammarSimple.newParser(grammarStr);
             Parser parser = new Parser(new Grammar(Arrays.asList( //
-                    rule("Rule1", seq(r("Name"), c(':'), r("Name"))), //
+                    rule("Rule1", seq(c('a'), c('='), optional(r("Label")), ast("Name", r("Name")))), //
+                    rule("Label", seq(ast("Label", r("Name")), c(':'))), //
                     rule("Name", oneOrMore(new CharSet('a', 'z'))) //
-                    )), grammarStr);
+            )), grammarStr);
 
-            ParserInfo.printParseResult(parser);
+            ParserInfo.printParseResult(parser, "Rule1");
         }
     }
 
