@@ -23,13 +23,14 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
         var subClause = subClauses[0];
         List<Match> subClauseMatches = null;
         var currStartPos = memoKey.startPos;
         for (;;) {
-            var subClauseMatch = memoTable.lookUpBestMatch(memoKey, new MemoKey(subClause, currStartPos), input,
-                    newMatchMemoEntries);
+            var subClauseMemoKey = new MemoKey(subClause, currStartPos);
+            var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
             if (subClauseMatch == null) {
                 break;
             }
@@ -46,7 +47,7 @@ public class OneOrMore extends Clause {
         }
         return subClauseMatches == null ? null
                 : memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0,
-                        subClauseMatches.toArray(Match.NO_SUBCLAUSE_MATCHES), newMatchMemoEntries);
+                        subClauseMatches.toArray(Match.NO_SUBCLAUSE_MATCHES), updatedEntries);
     }
 
     @Override

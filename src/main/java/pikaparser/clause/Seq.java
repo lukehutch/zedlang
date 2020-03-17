@@ -48,13 +48,14 @@ public class Seq extends Clause {
     }
 
     @Override
-    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
         Match[] subClauseMatches = null;
         var currStartPos = memoKey.startPos;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
-            var subClauseMatch = memoTable.lookUpBestMatch(memoKey, new MemoKey(subClause, currStartPos), input,
-                    newMatchMemoEntries);
+            var subClauseMemoKey = new MemoKey(subClause, currStartPos);
+            var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 return null;
@@ -65,8 +66,7 @@ public class Seq extends Clause {
             subClauseMatches[subClauseIdx] = subClauseMatch;
             currStartPos += subClauseMatch.len;
         }
-        return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches,
-                newMatchMemoEntries);
+        return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches, updatedEntries);
     }
 
     @Override

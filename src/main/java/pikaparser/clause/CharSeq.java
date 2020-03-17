@@ -19,10 +19,11 @@ public class CharSeq extends Terminal {
     }
 
     @Override
-    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> updatedEntries) {
+        // Terminals are always matched top-down
         if (memoKey.startPos < input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
-            // Because terminals are matched top-down, don't call MemoTable.addMatch for terminals
+            // Don't call MemoTable.addMatch for terminals, to limit size of memo table
             return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, str.length(),
                     Match.NO_SUBCLAUSE_MATCHES);
         }

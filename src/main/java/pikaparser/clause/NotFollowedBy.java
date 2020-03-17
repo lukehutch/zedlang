@@ -14,13 +14,14 @@ public class NotFollowedBy extends Clause {
     }
 
     @Override
-    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
-        var subClauseMatch = memoTable.lookUpBestMatch(memoKey, new MemoKey(subClauses[0], memoKey.startPos), input,
-                newMatchMemoEntries);
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
+        var subClauseMemoKey = new MemoKey(subClauses[0], memoKey.startPos);
+        var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
         // Replace any invalid subclause match with a zero-char-consuming match
         if (subClauseMatch == null) {
             return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, new Match[] { subClauseMatch },
-                    newMatchMemoEntries);
+                    updatedEntries);
         }
         return null;
     }

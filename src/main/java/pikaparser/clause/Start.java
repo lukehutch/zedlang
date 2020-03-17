@@ -8,8 +8,8 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 /**
- * Always use this rule at the start of the toplevel rule -- it will trigger parsing even if the rest of the subclauses
- * of the toplevel clause are topdown.
+ * Always use this rule at the start of the toplevel rule -- it will trigger parsing even if the rest of the
+ * subclauses of the toplevel clause are topdown.
  * 
  * <p>
  * Without using this, a toplevel rule "G = (WS R+)" will try matching rule R after every whitespace position. Using
@@ -23,10 +23,11 @@ public class Start extends Terminal {
     }
 
     @Override
-    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> updatedEntries) {
+        // Terminals are always matched top-down
         // Match zero characters at beginning of input
         if (memoKey.startPos == 0) {
-            // Because terminals are matched top-down, don't call MemoTable.addMatch for terminals
+            // Don't call MemoTable.addMatch for terminals, to limit size of memo table
             return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
                     Match.NO_SUBCLAUSE_MATCHES);
         }

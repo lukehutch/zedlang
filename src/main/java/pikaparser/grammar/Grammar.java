@@ -85,8 +85,8 @@ public class Grammar {
     }
 
     /**
-     * Resolve {@link RuleRef} clauses to a reference to the named rule, and label subclause positions with the AST node
-     * label from any {@link CreateASTNode} nodes in each subclause position.
+     * Resolve {@link RuleRef} clauses to a reference to the named rule, and label subclause positions with the AST
+     * node label from any {@link CreateASTNode} nodes in each subclause position.
      */
     private void resolveSubclauses(Clause clause) {
         for (int i = 0; i < clause.subClauses.length; i++) {

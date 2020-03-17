@@ -27,7 +27,7 @@ public abstract class Clause {
 
     protected String toStringCached;
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     protected Clause(Clause... subClauses) {
         this.subClauses = subClauses;
@@ -39,10 +39,11 @@ public abstract class Clause {
     }
 
     /**
-     * Get the list of subclause(s) that are "seed clauses" (first clauses that will be matched in the starting position
-     * of this clause). Prevents having to evaluate every clause at every position to put a backref into position from
-     * the first subclause back to this clause. Overridden only by {@link Longest}, since this evaluates all of its
-     * sub-clauses, and {@link FirstMatch}, since any one of the sub-clauses can match in the first position.
+     * Get the list of subclause(s) that are "seed clauses" (first clauses that will be matched in the starting
+     * position of this clause). Prevents having to evaluate every clause at every position to put a backref into
+     * position from the first subclause back to this clause. Overridden only by {@link Longest}, since this
+     * evaluates all of its sub-clauses, and {@link FirstMatch}, since any one of the sub-clauses can match in the
+     * first position.
      */
     protected List<Clause> getSeedSubClauses() {
         return subClauses.length == 0 ? Collections.emptyList() : Arrays.asList(subClauses[0]);
@@ -55,22 +56,29 @@ public abstract class Clause {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sets {@link #alwaysMatches} to true if this clause always matches at any input position. Overridden in
-     * subclasses.
+     * Sets {@link #alwaysMatches} to true if this clause always matches at any input position.
+     * 
+     * <p>
+     * Overridden in subclasses.
      */
     public void testWhetherAlwaysMatches() {
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
-    /** Match a clause at a given start position. */
-    public abstract Match match(MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> newMatchMemoEntries);
+    public static enum MatchDirection {
+        BOTTOM_UP, TOP_DOWN;
+    }
+    
+    /** Match a clause bottom-up at a given start position. 
+     * @param matchDirection TODO*/
+    public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey,
+            String input, Set<MemoEntry> updatedEntries);
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /** The hashCode compares only the string representation of sub-clauses, not rule names. */
     @Override

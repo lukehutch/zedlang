@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 import pikaparser.clause.Clause;
+import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.clause.Terminal;
 
 /** A memo entry for a specific {@link Clause} at a specific start position. */
@@ -17,8 +18,8 @@ public class MemoTable {
     private Map<Clause, ConcurrentSkipListMap<Integer, MemoEntry>> memoTable = new ConcurrentHashMap<>();
 
     /**
-     * Get the existing {@link MemoEntry} for this clause at the requested start position, or create and return a new
-     * empty {@link MemoEntry} if one did not exist.
+     * Get the existing {@link MemoEntry} for this clause at the requested start position, or create and return a
+     * new empty {@link MemoEntry} if one did not exist.
      * 
      * @param memoKey
      *            The clause and start position to check for a match.
@@ -37,17 +38,19 @@ public class MemoTable {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the current best match in the memo table without recursing to child clauses, or create a new memo entry as a
-     * placeholder to use even if there is no current match at the requested {@link MemoKey}.
+     * If matchDirection == BOTTOM_UP, get the current best match in the memo table without recursing to child
+     * clauses, or create a new memo entry as a placeholder to use even if there is no current match at the
+     * requested {@link MemoKey}.
      * 
      * <p>
-     * Overridden in {@link Terminal} for top-down matches.
+     * If matchDirection == TOP_DOWN, recurse down through child clauses (standard recursive descent parsing,
+     * unmemoized).
      */
-    public Match lookUpBestMatch(MemoKey parentMemoKey, MemoKey memoKey, String input,
+    public Match match(MatchDirection matchDirection, MemoKey parentMemoKey, MemoKey memoKey, String input,
             Set<MemoEntry> newMatchMemoEntries) {
-        if (memoKey.clause instanceof Terminal) {
+        if (matchDirection == MatchDirection.TOP_DOWN || memoKey.clause instanceof Terminal) {
             // Don't add entry to memo table for terminals, just performa a top-down match
-            return memoKey.clause.match(this, memoKey, input, newMatchMemoEntries);
+            return memoKey.clause.match(MatchDirection.TOP_DOWN, this, memoKey, input, newMatchMemoEntries);
         }
 
         // Get MemoEntry for the MemoKey
@@ -76,8 +79,8 @@ public class MemoTable {
     }
 
     /**
-     * Add a new {@link Match} to the memo table. Called when the subclauses of a clause match according to the match
-     * criteria for the clause.
+     * Add a new {@link Match} to the memo table. Called when the subclauses of a clause match according to the
+     * match criteria for the clause.
      */
     public Match addMatch(MemoKey memoKey, int firstMatchingSubClauseIdx, Match[] subClauseMatches,
             Set<MemoEntry> newMatchMemoEntries) {
@@ -101,8 +104,8 @@ public class MemoTable {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link Match} entries for all nonoverlapping matches of this clause, obtained by greedily matching from
-     * the beginning of the string, then looking for the next match after the end of the current match.
+     * Get the {@link Match} entries for all nonoverlapping matches of this clause, obtained by greedily matching
+     * from the beginning of the string, then looking for the next match after the end of the current match.
      */
     public List<Match> getNonOverlappingMatches(Clause clause) {
         var skipList = memoTable.get(clause);

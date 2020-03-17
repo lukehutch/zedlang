@@ -39,14 +39,14 @@ public class FirstMatch extends Clause {
     }
 
     @Override
-    public Match match(MemoTable memoTable, MemoKey memoKey, String input, Set<MemoEntry> newMatchMemoEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
-            var subClauseMatch = memoTable.lookUpBestMatch(memoKey, subClauseMemoKey, input, newMatchMemoEntries);
+            var subClauseMatch = memoTable.match(matchDirection, memoKey, subClauseMemoKey, input, updatedEntries);
             if (subClauseMatch != null) {
-                return memoTable.addMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch },
-                        newMatchMemoEntries);
+                return memoTable.addMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch }, updatedEntries);
             }
         }
         return null;

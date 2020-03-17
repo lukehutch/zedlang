@@ -9,6 +9,7 @@ import java.util.Set;
 import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
+import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
@@ -60,7 +61,8 @@ public class ParserInfo {
                 // Terminals are not memoized -- have to render them directly
                 Set<MemoEntry> set = new HashSet<>();
                 for (int j = 0; j <= input.length(); j++) {
-                    Match match = clause.match(parser.memoTable, new MemoKey(clause, j), input, set);
+                    Match match = clause.match(MatchDirection.TOP_DOWN, parser.memoTable, new MemoKey(clause, j),
+                            input, set);
                     if (match != null) {
                         buf[i].setCharAt(marginWidth + j, '#');
                         if (match.len > 1) {

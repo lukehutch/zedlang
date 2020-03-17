@@ -16,8 +16,8 @@ public class Match implements Comparable<Match> {
     public final Match[] subClauseMatches;
 
     /**
-     * The subclause index of the first matching subclause (will be 0 unless {@link #clause} is a {@link FirstMatch},
-     * and the matching clause was not the first subclause).
+     * The subclause index of the first matching subclause (will be 0 unless {@link #clause} is a
+     * {@link FirstMatch}, and the matching clause was not the first subclause).
      */
     public int firstMatchingSubClauseIdx;
 
