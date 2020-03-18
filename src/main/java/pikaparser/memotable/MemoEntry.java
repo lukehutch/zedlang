@@ -53,7 +53,7 @@ public class MemoEntry {
         }
 
         // If there is a new best match
-        if (newBestMatch != null) {
+        if (newBestMatch != null && newBestMatch != bestMatch) {
             // Update the bestMatch field in the MemoEntry
             bestMatch = newBestMatch;
 

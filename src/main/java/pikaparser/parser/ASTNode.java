@@ -33,7 +33,7 @@ public class ASTNode {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + astLabel + " " + startPos + "+" + len + "] : \"" + inp + "\"");
+        System.out.println(indentStr + "+-- " + astLabel + " " + startPos + "+" + len + " : \"" + inp + "\"");
         if (children != null) {
             for (int i = 0; i < children.size(); i++) {
                 var subClauseMatch = children.get(i);

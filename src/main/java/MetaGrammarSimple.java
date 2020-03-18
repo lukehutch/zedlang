@@ -1,4 +1,4 @@
-package pikaparser.grammar;
+
 
 import static pikaparser.clause.Clause.ast;
 import static pikaparser.clause.Clause.c;
@@ -12,6 +12,7 @@ import java.util.Arrays;
 
 import pikaparser.clause.CharSet;
 import pikaparser.clause.Clause;
+import pikaparser.grammar.Grammar;
 
 public class MetaGrammarSimple {
 
