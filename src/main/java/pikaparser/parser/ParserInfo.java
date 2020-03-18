@@ -40,7 +40,7 @@ public class ParserInfo {
             if (clause instanceof Terminal) {
                 buf[i].append("<terminal> ");
             }
-            if (clause.alwaysMatches) {
+            if (clause.canMatchZeroChars) {
                 buf[i].append("<alwaysMatches> ");
             }
             buf[i].append(clause.toString());

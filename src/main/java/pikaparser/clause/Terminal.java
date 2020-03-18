@@ -1,7 +1,7 @@
 package pikaparser.clause;
 
 public abstract class Terminal extends Clause {
-    public Terminal() {
+    Terminal() {
         super(new Clause[0]);
     }
 }

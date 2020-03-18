@@ -22,8 +22,8 @@ public abstract class Clause {
     /** The parent clauses to seed when this clause's match memo at a given position changes. */
     public final Set<Clause> seedParentClauses = new HashSet<>();
 
-    /** If true, the clause can match Nothing. */
-    public boolean alwaysMatches;
+    /** If true, the clause can match zero characters. */
+    public boolean canMatchZeroChars;
 
     protected String toStringCached;
 
@@ -42,8 +42,8 @@ public abstract class Clause {
      * Get the list of subclause(s) that are "seed clauses" (first clauses that will be matched in the starting
      * position of this clause). Prevents having to evaluate every clause at every position to put a backref into
      * position from the first subclause back to this clause. Overridden only by {@link Longest}, since this
-     * evaluates all of its sub-clauses, and {@link FirstMatch}, since any one of the sub-clauses can match in the
-     * first position.
+     * evaluates all of its sub-clauses, and {@link First}, since any one of the sub-clauses can match in the first
+     * position.
      */
     protected List<Clause> getSeedSubClauses() {
         return subClauses.length == 0 ? Collections.emptyList() : Arrays.asList(subClauses[0]);
@@ -59,7 +59,8 @@ public abstract class Clause {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sets {@link #alwaysMatches} to true if this clause always matches at any input position.
+     * Sets {@link #canMatchZeroChars} to true if this clause can match zero characters, i.e. always matches at any
+     * input position.
      * 
      * <p>
      * Overridden in subclasses.
@@ -106,6 +107,15 @@ public abstract class Clause {
 
     // Clause factories, for clause optimization and sanity checking
 
+    public static Clause rule(String ruleName, Clause ruleClause) {
+        ruleClause.ruleName = ruleName;
+        return ruleClause;
+    }
+
+    public static Clause ast(String astLabel, Clause clause) {
+        return new CreateASTNode(astLabel, clause);
+    }
+
     public static Clause oneOrMore(Clause subClause) {
         // It doesn't make sense to wrap these clause types in OneOrMore, but the OneOrMore should have
         // no effect if this does occur in the grammar, so remove it
@@ -116,21 +126,48 @@ public abstract class Clause {
         return new OneOrMore(subClause);
     }
 
-    public static Clause zeroOrMore(Clause clause) {
-        return optional(oneOrMore(clause));
+    public static Clause zeroOrMore(Clause subClause) {
+        // ZeroOrMore(X) -> FirstMatch(OneOrMore(X), Nothing)
+        return optional(oneOrMore(subClause));
     }
 
-    public static Clause optional(Clause clause) {
-        return first(clause, nothing());
+    public static Clause optional(Clause subClause) {
+        // Optional(X) -> FirstMatch(X, Nothing)
+        return first(subClause, nothing());
     }
 
-    public static Clause rule(String ruleName, Clause clause) {
-        clause.ruleName = ruleName;
-        return clause;
+    public static Clause first(Clause... subClauses) {
+        for (int i = 0; i < subClauses.length; i++) {
+            if (subClauses[i] instanceof Nothing && i < subClauses.length - 1) {
+                throw new IllegalArgumentException("Subclauses of " + First.class.getSimpleName() + " after "
+                        + Nothing.class.getSimpleName() + " will not be matched");
+            }
+        }
+        return new First(subClauses);
     }
 
-    public static Clause ast(String astLabel, Clause clause) {
-        return new CreateASTNode(astLabel, clause);
+    public static Clause followedBy(Clause subClause) {
+        if (subClause instanceof Nothing) {
+            // FollowedBy(Nothing) -> Nothing (since Nothing always matches)
+            return subClause;
+        } else if (subClause instanceof FollowedBy || subClause instanceof NotFollowedBy
+                || subClause instanceof Start) {
+            throw new IllegalArgumentException(FollowedBy.class.getSimpleName() + "("
+                    + subClause.getClass().getSimpleName() + "(X)) is nonsensical");
+        }
+        return new FollowedBy(subClause);
+    }
+
+    public static Clause notFollowedBy(Clause subClause) {
+        if (subClause instanceof Nothing) {
+            throw new IllegalArgumentException(NotFollowedBy.class.getSimpleName() + "("
+                    + Nothing.class.getSimpleName() + ") will never match anything");
+        } else if (subClause instanceof FollowedBy || subClause instanceof NotFollowedBy
+                || subClause instanceof Start) {
+            throw new IllegalArgumentException(NotFollowedBy.class.getSimpleName() + "("
+                    + subClause.getClass().getSimpleName() + "(X)) is nonsensical");
+        }
+        return new NotFollowedBy(subClause);
     }
 
     public static Clause start() {
@@ -141,16 +178,8 @@ public abstract class Clause {
         return new Nothing();
     }
 
-    public static Clause seq(Clause... clause) {
-        return new Seq(clause);
-    }
-
-    public static Clause first(Clause... clause) {
-        return new FirstMatch(clause);
-    }
-
-    public static Clause first(List<Clause> clause) {
-        return new FirstMatch(clause.toArray(new Clause[0]));
+    public static Clause seq(Clause... subClauses) {
+        return new Seq(subClauses);
     }
 
     public static Clause r(String ruleName) {
@@ -159,10 +188,6 @@ public abstract class Clause {
 
     public static Clause c(char chr) {
         return new CharSet(chr);
-    }
-
-    public static Clause str(String str) {
-        return new CharSeq(str, /* ignoreCase = */ false);
     }
 
     public static Clause cRange(String charRanges) {
@@ -184,7 +209,7 @@ public abstract class Clause {
         return charSets.size() == 1 ? charSets.get(0) : new CharSet(charSets);
     }
 
-    public static Clause text(String str) {
+    public static Clause str(String str) {
         return new CharSeq(str, /* ignoreCase = */ false);
     }
 }

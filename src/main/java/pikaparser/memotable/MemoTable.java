@@ -78,7 +78,7 @@ public class MemoTable {
             bestMatch = memoKey.clause.match(MatchDirection.TOP_DOWN, this, memoKey, input, newMatchMemoEntries);
             updateMemoTable = bestMatch != null;
 
-        } else if (memoEntry.bestMatch == null && memoKey.clause.alwaysMatches) {
+        } else if (memoEntry.bestMatch == null && memoKey.clause.canMatchZeroChars) {
             // If there is no current best match for the memo, but the subclause always matches, create and memoize
             // a new zero-width match. This will trigger the parent clause to be reevaluated in the next iteration.
             // Record the new match in the memo entry, and schedule the memo entry to be updated.

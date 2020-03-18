@@ -1,17 +1,6 @@
 package pikaparser.grammar;
 
-import static pikaparser.clause.Clause.ast;
-import static pikaparser.clause.Clause.c;
-import static pikaparser.clause.Clause.cRange;
-import static pikaparser.clause.Clause.first;
-import static pikaparser.clause.Clause.oneOrMore;
-import static pikaparser.clause.Clause.optional;
-import static pikaparser.clause.Clause.r;
-import static pikaparser.clause.Clause.rule;
-import static pikaparser.clause.Clause.seq;
-import static pikaparser.clause.Clause.start;
-import static pikaparser.clause.Clause.text;
-import static pikaparser.clause.Clause.zeroOrMore;
+import static pikaparser.clause.Clause.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,10 +9,6 @@ import java.util.stream.Collectors;
 
 import pikaparser.clause.CharSet;
 import pikaparser.clause.Clause;
-import pikaparser.clause.CreateASTNode;
-import pikaparser.clause.FollowedBy;
-import pikaparser.clause.NotFollowedBy;
-import pikaparser.clause.Seq;
 import pikaparser.parser.ASTNode;
 import pikaparser.parser.Parser;
 
@@ -116,7 +101,7 @@ public class MetaGrammar {
 
             rule(ONE_OR_MORE, //
                     ast(ONE_OR_MORE_AST, seq(r(CLAUSE), ws, //
-                            //                                first(text("++"), // TODO: OneOrMoreSuffix
+                            //                                first(str("++"), // TODO: OneOrMoreSuffix
                             //                                        c('+'))
                             c('+')))),
 
@@ -174,8 +159,8 @@ public class MetaGrammar {
                     first( //
                             new CharSet('\\', ']').invert(), //
                             r(SINGLE_QUOTED_CHAR), //
-                            text("\\]"), //
-                            text("\\^"))),
+                            str("\\]"), //
+                            str("\\^"))),
 
             rule(QUOTED_STRING, //
                     seq(c('"'), ast(QUOTED_STRING_AST, zeroOrMore(r(STR_QUOTED_CHAR))), c('"'))), //
@@ -188,15 +173,15 @@ public class MetaGrammar {
 
             rule(ESCAPED_CTRL_CHAR, //
                     first( //
-                            text("\\t"), //
-                            text("\\b"), //
-                            text("\\n"), //
-                            text("\\r"), //
-                            text("\\f"), //
-                            text("\\'"), //
-                            text("\\\""), //
-                            text("\\\\"), //
-                            seq(text("\\u"), r(HEX), r(HEX), r(HEX), r(HEX)))), //
+                            str("\\t"), //
+                            str("\\b"), //
+                            str("\\n"), //
+                            str("\\r"), //
+                            str("\\f"), //
+                            str("\\'"), //
+                            str("\\\""), //
+                            str("\\\\"), //
+                            seq(str("\\u"), r(HEX), r(HEX), r(HEX), r(HEX)))), //
 
             rule(NOTHING, //
                     seq(c('('), ws, c(')'))),
@@ -268,15 +253,16 @@ public class MetaGrammar {
         return buf.toString();
     }
 
-    private static List<Clause> parseClauses(List<ASTNode> clauseNodes, String input) {
-        return clauseNodes.stream().map(clauseNode -> parseClause(clauseNode, input)).collect(Collectors.toList());
+    private static Clause[] parseClauses(List<ASTNode> clauseNodes, String input) {
+        return clauseNodes.stream().map(clauseNode -> parseClause(clauseNode, input)).collect(Collectors.toList())
+                .toArray(new Clause[0]);
     }
 
     private static Clause parseClause(ASTNode clauseNode, String input) {
         Clause clause;
         switch (clauseNode.astLabel) {
         case SEQ_AST:
-            clause = new Seq(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
+            clause = seq(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
             break;
         case ONE_OR_MORE_AST:
             clause = oneOrMore(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
@@ -285,16 +271,16 @@ public class MetaGrammar {
             clause = first(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
             break;
         case FOLLOWED_BY_AST:
-            clause = new FollowedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
+            clause = followedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
             break;
         case NOT_FOLLOWED_BY_AST:
-            clause = new NotFollowedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
+            clause = notFollowedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
             break;
         case NAME_AST:
             clause = r(clauseNode.getText(input)); // Rule name ref
             break;
         case QUOTED_STRING_AST: // Doesn't include surrounding quotes
-            clause = text(unescapeString(clauseNode.getText(input)));
+            clause = str(unescapeString(clauseNode.getText(input)));
             break;
         case SINGLE_QUOTED_CHAR_AST:
             clause = c(unescapeChar(clauseNode.getText(input)));
@@ -313,7 +299,7 @@ public class MetaGrammar {
                         : null;
         if (astNodeLabel != null) {
             // Wrap clause in CreateASTNode node, if it is labeled
-            clause = new CreateASTNode(astNodeLabel, clause);
+            clause = ast(astNodeLabel, clause);
         }
         return clause;
     }

@@ -11,7 +11,7 @@ import pikaparser.memotable.MemoTable;
 
 public class Seq extends Clause {
 
-    public Seq(Clause... subClauses) {
+    Seq(Clause... subClauses) {
         super(subClauses);
         if (subClauses.length < 2) {
             throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
@@ -25,10 +25,10 @@ public class Seq extends Clause {
     @Override
     public void testWhetherAlwaysMatches() {
         // For Seq, all subclauses must always match for the whole clause to always match
-        alwaysMatches = true;
+        canMatchZeroChars = true;
         for (Clause subClause : subClauses) {
-            if (!subClause.alwaysMatches) {
-                alwaysMatches = false;
+            if (!subClause.canMatchZeroChars) {
+                canMatchZeroChars = false;
                 break;
             }
         }
@@ -36,13 +36,12 @@ public class Seq extends Clause {
 
     @Override
     public List<Clause> getSeedSubClauses() {
-        // Any sub-clause up to and including the first clause that doesn't always match could be the matching
-        // clause. Also need to accept a Start token at the beginning of a sequence as "always matching" so that
-        // the toplevel clause is triggered when a subsequent subclause matches
+        // Any sub-clause up to and including the first clause that requires a non-zero-char match could be
+        // the matching clause.
         List<Clause> seedSubClauses = new ArrayList<>(subClauses.length);
         for (int i = 0; i < subClauses.length; i++) {
             seedSubClauses.add(subClauses[i]);
-            if (!subClauses[i].alwaysMatches && !(subClauses[i] instanceof Start)) {
+            if (!subClauses[i].canMatchZeroChars) {
                 // Don't need to seed any subsequent subclauses
                 break;
             }

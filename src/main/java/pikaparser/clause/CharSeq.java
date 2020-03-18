@@ -12,7 +12,7 @@ public class CharSeq extends Terminal {
     public final String str;
     public final boolean ignoreCase;
 
-    public CharSeq(String str, boolean ignoreCase) {
+    CharSeq(String str, boolean ignoreCase) {
         super();
         this.str = str;
         this.ignoreCase = ignoreCase;

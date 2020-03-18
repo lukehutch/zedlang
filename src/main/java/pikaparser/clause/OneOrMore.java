@@ -16,8 +16,8 @@ public class OneOrMore extends Clause {
 
     @Override
     public void testWhetherAlwaysMatches() {
-        if (subClauses[0].alwaysMatches) {
-            alwaysMatches = true;
+        if (subClauses[0].canMatchZeroChars) {
+            canMatchZeroChars = true;
         }
     }
 

@@ -20,7 +20,7 @@ public class CharSet extends Terminal {
 
     public boolean invertMatch = false;
 
-    public CharSet(char c) {
+    CharSet(char c) {
         super();
         this.charSet.add(c);
     }

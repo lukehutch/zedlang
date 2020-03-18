@@ -10,7 +10,7 @@ import pikaparser.memotable.MemoTable;
 public class RuleRef extends Clause {
     public final String refdRuleName;
 
-    public RuleRef(String refdRuleName) {
+    RuleRef(String refdRuleName) {
         super(new Clause[0]);
         this.refdRuleName = refdRuleName;
     }

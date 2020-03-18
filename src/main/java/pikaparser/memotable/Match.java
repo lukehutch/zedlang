@@ -1,7 +1,7 @@
 package pikaparser.memotable;
 
 import pikaparser.clause.Clause;
-import pikaparser.clause.FirstMatch;
+import pikaparser.clause.First;
 import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
@@ -17,7 +17,7 @@ public class Match implements Comparable<Match> {
 
     /**
      * The subclause index of the first matching subclause (will be 0 unless {@link #clause} is a
-     * {@link FirstMatch}, and the matching clause was not the first subclause).
+     * {@link First}, and the matching clause was not the first subclause).
      */
     public int firstMatchingSubClauseIdx;
 

@@ -8,7 +8,7 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public class CreateASTNode extends Clause {
-    public CreateASTNode(String astNodeLabel, Clause clause) {
+    CreateASTNode(String astNodeLabel, Clause clause) {
         super(new Clause[] { clause });
         this.ruleNodeLabel = astNodeLabel;
     }

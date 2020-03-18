@@ -10,9 +10,9 @@ import pikaparser.memotable.MemoTable;
 public class Nothing extends Terminal {
     public static final String NOTHING_STR = "()";
 
-    public Nothing() {
+    Nothing() {
         super();
-        alwaysMatches = true;
+        canMatchZeroChars = true;
     }
 
     @Override

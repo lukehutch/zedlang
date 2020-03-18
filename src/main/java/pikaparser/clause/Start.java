@@ -18,8 +18,11 @@ import pikaparser.memotable.MemoTable;
 public class Start extends Terminal {
     public static final String START_STR = "^";
 
-    public Start() {
+    Start() {
         super();
+        // Need to mark a Start token at the beginning of a sequence as matching zero characters, so that
+        // the parent clause is triggered in the case of Seq(Start, X)
+        canMatchZeroChars = true;
     }
 
     @Override

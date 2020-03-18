@@ -9,7 +9,7 @@ import pikaparser.memotable.MemoTable;
 
 public class NotFollowedBy extends Clause {
 
-    public NotFollowedBy(Clause subClause) {
+    NotFollowedBy(Clause subClause) {
         super(new Clause[] { subClause });
     }
 

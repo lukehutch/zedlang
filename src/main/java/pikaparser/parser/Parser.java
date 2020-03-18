@@ -20,7 +20,7 @@ public class Parser {
 
     public final MemoTable memoTable = new MemoTable();
 
-    private static final boolean PARALLELIZE = true;  // TODO
+    private static final boolean PARALLELIZE = true;
 
     public Parser(Grammar grammar, String input) {
         this.grammar = grammar;
@@ -49,7 +49,6 @@ public class Parser {
             // Find positions that all terminals match, and create the initial active set from parents of terminals
             (PARALLELIZE ? grammar.allClauses.parallelStream() : grammar.allClauses.stream()).forEach(clause -> {
                 // Create initial active set by matching all terminals at every character position.
-                // Assume Nothing (as a Terminal) does not need to trigger any parent rules by being in the first position. TODO: check this for each rule
                 if (clause instanceof Terminal && !(clause instanceof Nothing)) {
                     // Terminals are matched top down, to avoid creating memo table entries for them
                     for (int startPos = 0; startPos < input.length(); startPos++) {

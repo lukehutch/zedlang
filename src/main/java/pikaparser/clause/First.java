@@ -9,12 +9,12 @@ import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
-public class FirstMatch extends Clause {
+public class First extends Clause {
 
-    public FirstMatch(Clause... subClauses) {
+    First(Clause... subClauses) {
         super(subClauses);
         if (subClauses.length < 2) {
-            throw new IllegalArgumentException(FirstMatch.class.getSimpleName() + " expects 2 or more subclauses");
+            throw new IllegalArgumentException(First.class.getSimpleName() + " expects 2 or more subclauses");
         }
     }
 
@@ -23,10 +23,10 @@ public class FirstMatch extends Clause {
     public void testWhetherAlwaysMatches() {
         for (int i = 0; i < subClauses.length; i++) {
             Clause subClause = subClauses[i];
-            if (subClause.alwaysMatches) {
-                alwaysMatches = true;
+            if (subClause.canMatchZeroChars) {
+                canMatchZeroChars = true;
                 if (i < subClauses.length - 1) {
-                    throw new IllegalArgumentException("Subclause " + i + " of " + FirstMatch.class.getSimpleName()
+                    throw new IllegalArgumentException("Subclause " + i + " of " + First.class.getSimpleName()
                             + " can evaluate to " + Nothing.class.getSimpleName()
                             + ", which means subsequent subclauses will never be matched: " + this);
                 }

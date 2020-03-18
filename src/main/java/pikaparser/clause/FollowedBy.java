@@ -9,14 +9,14 @@ import pikaparser.memotable.MemoTable;
 
 public class FollowedBy extends Clause {
 
-    public FollowedBy(Clause subClause) {
+    FollowedBy(Clause subClause) {
         super(new Clause[] { subClause });
     }
 
     @Override
     public void testWhetherAlwaysMatches() {
-        if (subClauses[0].alwaysMatches) {
-            alwaysMatches = true;
+        if (subClauses[0].canMatchZeroChars) {
+            canMatchZeroChars = true;
         }
     }
 
