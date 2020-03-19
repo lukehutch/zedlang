@@ -115,7 +115,7 @@ public class Match implements Comparable<Match> {
 
     public ASTNode toAST(String input) {
         // If root clause is labeled, use label as name. Otherwise labels will be added only from subclauses.
-        var rootNodeLabel = memoKey.clause.ruleNodeLabel != null ? memoKey.clause.ruleNodeLabel : "<root>";
+        var rootNodeLabel = memoKey.clause.ruleASTNodeLabel != null ? memoKey.clause.ruleASTNodeLabel : "<root>";
         var root = new ASTNode(rootNodeLabel, memoKey.clause, memoKey.startPos, len);
         toAST(root, input);
         return root;

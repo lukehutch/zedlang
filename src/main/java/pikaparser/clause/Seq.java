@@ -1,8 +1,8 @@
 package pikaparser.clause;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -51,13 +51,13 @@ public class Seq extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            Collection<MemoEntry> updatedEntries) {
         Match[] subClauseMatches = null;
         var currStartPos = memoKey.startPos;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
-            var subClauseMatch = memoTable.match(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
+            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 return null;

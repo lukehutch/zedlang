@@ -1,12 +1,33 @@
 
+# Lex rule:
 
-Program = ^ WS Import+ (statement:Statement)+;
+Lex = WS | Ident | EnumConst | Num | LParen | RParen | Eq | Semi | Dot;
 
 WS = (' ' | '\t' | '\n' | '\r' | '\f')+;
 
-Import = "import" WS package:Package WS ';';
+Ident = [a-zA-Z_][a-zA-Z0-9_]*;
 
-Package = Ident ('.' Package)?;
+EnumConst = '#' Ident;
 
-Ident = [a-zA-Z_][a-zA-Z0-9_]?;
+Num = [0-9]+ | ([0-9]+? '.' [0-9]+ [fFdD]?);
+
+LParen = '('; 
+RParen = ')'; 
+Eq = '=';
+Semi = ';';
+Dot = '.';
+
+# Post-lex grammar:
+
+Program = ^ WS Import+ (statement:Statement)+;
+
+Import = "import" WS import:Package WS Semi;
+
+Package = Ident (Dot Package)?;
+
+Statement = Ident WS Eq WS Expr WS Semi;
+
+Expr = Term 
+
+Term = Ident | EnumConst | Num;
 

@@ -1,6 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.Collection;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -20,7 +20,7 @@ public class CharSeq extends Terminal {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            Collection<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         if (memoKey.startPos < input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {

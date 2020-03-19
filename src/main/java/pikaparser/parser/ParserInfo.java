@@ -108,7 +108,7 @@ public class ParserInfo {
         }
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
-            System.out.print(c < 32 || c > 126 ? '#' : c);
+            System.out.print(c < 32 || c > 126 ? '■' : c);
         }
         System.out.println();
 

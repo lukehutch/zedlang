@@ -1,6 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.Collection;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -22,7 +22,7 @@ public class Nothing extends Terminal {
     // (This shouldn't be called under normal circumstances.)
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            Collection<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         // Don't call MemoTable.addMatch for terminals, to limit size of memo table
         memoTable.numMatchObjectsCreated.incrementAndGet();

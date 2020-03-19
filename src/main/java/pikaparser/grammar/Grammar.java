@@ -19,14 +19,32 @@ public class Grammar {
     public final List<Clause> allClauses;
     public Clause lexRule;
     public final Map<String, Clause> ruleNameToRule = new HashMap<>();
+    public final Map<String, Clause> toStringToClause = new HashMap<>();
 
     public Grammar(List<Clause> rules) {
         this(/* lexRuleName = */ null, rules);
     }
 
     public Grammar(String lexRuleName, List<Clause> rules) {
-        // Call the toString() method on all clauses, so that 
-        // Create mapping from rule name to rule, so RuleRef nodes can be resolved
+        // Find all rules that have an AST node label at the top level, and remove the CreateASTNode
+        for (int i = 0, n = rules.size(); i < n; i++) {
+            Clause rule = rules.get(i);
+            if (rule instanceof CreateASTNode) {
+                // If there's a CreateASTNode at the top of a rule, it is not a subclause of another clause,
+                // so it cannot be labeled using Clause.subClauseASTNodeLabels. Remove the CreateASTNode from
+                // the clause hierarchy, and label the whole rule with the AST node label.
+                Clause subClause = rule.subClauses[0];
+                rules.set(i, subClause);
+                subClause.ruleASTNodeLabel = rule.ruleASTNodeLabel;
+                subClause.ruleName = rule.ruleName;
+                rule = subClause;
+            }
+            // For all subclauses of rule, remove any CreateASTNode nodes in subclauses, and label subclauses
+            addASTNodeLabels(rule);
+        }
+
+        // Create mapping from rule name to rule, so RuleRef nodes can be resolved (this needs to be done after
+        // removing CreateASTNode nodes, otherwise the rule name could point to a toplevel CreateASTNode node)
         for (var rule : rules) {
             if (rule.ruleName == null) {
                 throw new IllegalArgumentException("All rules must be named");
@@ -53,29 +71,28 @@ public class Grammar {
 
         // Run toString() method on all clauses, bottom-up, so that toString() values are cached, and so that
         // after replacing all RuleRef objects with direct Clause references, calling toString() on a cyclic
-        // clause structure does not get stuck in an infinite loop
-        Set<Clause> toStringVisited = new HashSet<>();
+        // clause structure does not get stuck in an infinite loop. This also interns clauses, coalescing shared
+        // sub-clauses are into a DAG, so that effort is not wasted parsing different instances of the same
+        // clause multiple times. This should be done after addASTNodeLabels and before resolveRuleRefs.
+        Set<Clause> internVisited = new HashSet<>();
         for (Clause rule : rules) {
-            callToString(rule, toStringVisited);
-        }
-
-        // Find all rules that have an AST node label at the top level, and remove the CreateASTNode
-        for (int i = 0, n = rules.size(); i < n; i++) {
-            Clause rule = rules.get(i);
-            if (rule instanceof CreateASTNode) {
-                // If there's a CreateASTNode at the top of a rule, it is not a subclause of another clause,
-                // so it cannot be labeled using Clause.subClauseASTNodeLabels. Remove the CreateASTNode from
-                // the clause hierarchy, and label the whole rule with the AST node label.
-                Clause subClause = rule.subClauses[0];
-                rules.set(i, subClause);
-                subClause.ruleNodeLabel = rule.ruleNodeLabel;
+            Clause internedRule = intern(rule, internVisited);
+            if (internedRule != rule) {
+                // Should not need to update the rules array with the interned rule, because rule names
+                // were already checked for duplicates, so rules should be distinct
+                throw new IllegalArgumentException("Duplicate rule: " + internedRule);
             }
         }
 
         // For all subclauses of rules, remove any CreateASTNode nodes in subclauses, and label subclauses
         for (int i = 0, n = rules.size(); i < n; i++) {
             Clause rule = rules.get(i);
-            resolveSubclauses(rule);
+            if (rule.ruleName != null && rule instanceof RuleRef) {
+                // A rule cannot just consisnt of a RuleRef, since that would mean the same rule gets two names
+                throw new IllegalArgumentException("Rule " + rule.ruleName
+                        + " consists of only a reference to another rule: " + ((RuleRef) rule).refdRuleName);
+            }
+            resolveRuleRefs(rule);
         }
 
         // Find clauses reachable from the toplevel clause, in reverse topological order.
@@ -101,14 +118,25 @@ public class Grammar {
     /**
      * Recursively call toString() on clause tree, so that toString() values are cached before {@link RuleRef}
      * objects are replaced with direct references.
+     * 
+     * @return
      */
-    private static void callToString(Clause clause, Set<Clause> visited) {
+    private Clause intern(Clause clause, Set<Clause> visited) {
         if (visited.add(clause)) {
-            for (var subClause : clause.subClauses) {
-                callToString(subClause, visited);
+            for (int i = 0; i < clause.subClauses.length; i++) {
+                clause.subClauses[i] = intern(clause.subClauses[i], visited);
             }
-            // Call toString() bottom-up so subclause toString() values are cached
-            clause.toString();
+
+            // Call toString() bottom-up (after recursing to child nodes) so subclause toString() values are cached
+            String toStr = clause.toString();
+
+            // Intern the clause, and return interned copy 
+            Clause prevInternedClause = toStringToClause.putIfAbsent(toStr, clause);
+            return prevInternedClause != null ? prevInternedClause : clause;
+        } else {
+            // Avoid infinite loop
+            Clause internedClause = toStringToClause.get(clause.toString());
+            return internedClause != null ? internedClause : clause;
         }
     }
 
@@ -133,47 +161,48 @@ public class Grammar {
         }
     }
 
+    private void updateSubClause(Clause clause, int subClauseIdx, Clause replacementSubClause,
+            String subClauseASTNodeLabel) {
+        // Replace subclause to remove CreateASTNode node(s)
+        clause.subClauses[subClauseIdx] = replacementSubClause;
+
+        // Label the subclause position with the AST node label of the ref'd rule, unless subclause is
+        // already labeled in the parent clause
+        if (subClauseASTNodeLabel != null
+                && (clause.subClauseASTNodeLabels == null || clause.subClauseASTNodeLabels[subClauseIdx] == null)) {
+            if (subClauseASTNodeLabel != null && clause.subClauseASTNodeLabels == null) {
+                // Alloc array for subclause node labels, if not already done
+                clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
+            }
+            clause.subClauseASTNodeLabels[subClauseIdx] = subClauseASTNodeLabel;
+        }
+    }
+
     /**
-     * Resolve {@link RuleRef} clauses to a reference to the named rule, and label subclause positions with the AST
-     * node label from any {@link CreateASTNode} nodes in each subclause position.
+     * Label subclause positions with the AST node label from any {@link CreateASTNode} nodes in each subclause
+     * position.
      */
-    private void resolveSubclauses(Clause clause) {
+    private void addASTNodeLabels(Clause clause) {
         for (int i = 0; i < clause.subClauses.length; i++) {
             Clause subClause = clause.subClauses[i];
             String subClauseASTNodeLabel = null;
             Clause replacementSubClause = subClause;
-            boolean followedRuleRef = false;
-            if (replacementSubClause instanceof CreateASTNode || replacementSubClause instanceof RuleRef) {
+            if (replacementSubClause instanceof CreateASTNode) {
                 var visited = new LinkedHashSet<Clause>();
                 for (boolean changed = true; changed;) {
-                    // Stop when no more CreateASTNode or RuleRef nodes are encountered
+                    // Stop when no more CreateASTNode nodes are encountered
                     changed = false;
                     // Avoid infinite loop
                     if (visited.add(replacementSubClause)) {
-                        // RuleRef and CreateASTNode nodes can be nested, so need to follow the chain all the way to the end
+                        // CreateASTNode nodes can be nested, so need to follow the chain all the way to the end
                         while (replacementSubClause instanceof CreateASTNode) {
                             if (subClauseASTNodeLabel == null) {
                                 // Label the subclause position with the highest of any encountered AST node labels
-                                subClauseASTNodeLabel = replacementSubClause.ruleNodeLabel;
+                                subClauseASTNodeLabel = replacementSubClause.ruleASTNodeLabel;
                             }
 
                             // Remove the CreateASTNode node from the grammar
                             replacementSubClause = replacementSubClause.subClauses[0];
-                            changed = true;
-                        }
-                        while (replacementSubClause instanceof RuleRef) {
-                            if (subClauseASTNodeLabel == null) {
-                                // Label the subclause position with the highest of any encountered AST node labels
-                                subClauseASTNodeLabel = replacementSubClause.ruleNodeLabel;
-                            }
-
-                            // Look up rule from name
-                            String refdRuleName = ((RuleRef) replacementSubClause).refdRuleName;
-                            replacementSubClause = ruleNameToRule.get(refdRuleName);
-                            if (replacementSubClause == null) {
-                                throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
-                            }
-                            followedRuleRef = true;
                             changed = true;
                         }
                     } else {
@@ -182,31 +211,59 @@ public class Grammar {
                 }
             }
 
-            // Replace subclause if necessary
+            // Replace subclause to remove CreateASTNode node(s), and label sub-subclause with AST node label
             if (replacementSubClause != subClause) {
-                clause.subClauses[i] = replacementSubClause;
+                updateSubClause(clause, i, replacementSubClause, subClauseASTNodeLabel);
             }
 
-            // Label the subclause position with the AST node label of the ref'd rule, unless subclause is
-            // already labeled in the parent clause
-            if (subClauseASTNodeLabel != null
-                    && (clause.subClauseASTNodeLabels == null || clause.subClauseASTNodeLabels[i] == null)) {
-                if (subClauseASTNodeLabel != null && clause.subClauseASTNodeLabels == null) {
-                    // Alloc array for subclause node labels, if not already done
-                    clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
+            // Recurse through subclause tree, starting from sub-subclause, if a CreateASTNode node was removed
+            addASTNodeLabels(replacementSubClause);
+        }
+    }
+
+    /**
+     * Resolve {@link RuleRef} clauses to a reference to the named rule, and label subclause positions with the AST
+     * node label from any {@link CreateASTNode} nodes in each subclause position.
+     */
+    private void resolveRuleRefs(Clause clause) {
+        for (int i = 0; i < clause.subClauses.length; i++) {
+            Clause subClause = clause.subClauses[i];
+            String subClauseASTNodeLabel = null;
+            Clause replacementSubClause = subClause;
+            if (replacementSubClause instanceof RuleRef) {
+                var visited = new LinkedHashSet<Clause>();
+                for (boolean changed = true; changed;) {
+                    // Stop when no more RuleRef nodes are encountered
+                    changed = false;
+                    // Avoid infinite loop
+                    if (visited.add(replacementSubClause)) {
+                        // RuleRef nodes can be nested, so need to follow the chain all the way to the end
+                        while (replacementSubClause instanceof RuleRef) {
+                            if (subClauseASTNodeLabel == null) {
+                                // Label the subclause position with the highest of any encountered AST node labels
+                                subClauseASTNodeLabel = replacementSubClause.ruleASTNodeLabel;
+                            }
+
+                            // Look up rule from name
+                            String refdRuleName = ((RuleRef) replacementSubClause).refdRuleName;
+                            replacementSubClause = ruleNameToRule.get(refdRuleName);
+                            if (replacementSubClause == null) {
+                                throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
+                            }
+                            changed = true;
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Reached infinite loop in node references: " + visited);
+                    }
                 }
-                if (subClauseASTNodeLabel != null) {
-                    clause.subClauseASTNodeLabels[i] = subClauseASTNodeLabel;
-                }
-                clause.subClauseASTNodeLabels[i] = subClauseASTNodeLabel;
             }
 
-            // Add AST node label in subclause position, if node is labeled
-
-            // Recurse through subclause tree, stopping at any RuleRef instances (referenced rules will be
-            // processed separately -- this also avoids an infinite loop)
-            if (!followedRuleRef) {
-                resolveSubclauses(subClause);
+            if (replacementSubClause != subClause) {
+                // Replace RuleRef with direct reference to the named rule 
+                updateSubClause(clause, i, replacementSubClause, subClauseASTNodeLabel);
+            } else {
+                // Recurse through subclause tree, but only if a RuleRef was not reached 
+                resolveRuleRefs(subClause);
             }
         }
     }

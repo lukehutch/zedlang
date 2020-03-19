@@ -2,6 +2,7 @@ package pikaparser.parser;
 
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.Clause.MatchDirection;
@@ -26,8 +27,12 @@ public class Parser {
         this.grammar = grammar;
         this.input = input;
 
+        // Active set entries may be updated by multiple sub-clauses in a single step, so this needs to be a set
         var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
-        var updatedEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
+        
+        // Updated entries are not duplicated -- up to one is produced per MemoKey in the active set, so this
+        // doesn't need to be a set
+        var updatedEntries = new ConcurrentLinkedQueue<MemoEntry>();
 
         // If a lex rule was specified, seed the bottom-up parsing by running the lex rule top-down
         if (grammar.lexRule != null) {
@@ -60,7 +65,8 @@ public class Parser {
                                 // Add parent clause to active set. This will cause the terminal to be
                                 // evaluated again top-down by the parent clause, but avoids creating a memo
                                 // table entry for the terminal.
-                                activeSet.add(new MemoKey(seedParentClause, startPos));
+                                MemoKey parentMemoKey = new MemoKey(seedParentClause, startPos);
+                                activeSet.add(parentMemoKey);
                             }
                         }
                     }
@@ -84,7 +90,7 @@ public class Parser {
             // For each MemoEntry in newMatches, find best new match, and if the match 
             // improves, add the MemoEntry to activeSet for the next round
             (PARALLELIZE ? updatedEntries.parallelStream() : updatedEntries.stream()).forEach(memoEntry -> {
-                memoEntry.updateBestMatch(memoTable, input, activeSet);
+                memoEntry.updateBestMatch(input, activeSet);
             });
 
             // Clear memoEntriesWithNewMatches for the next round

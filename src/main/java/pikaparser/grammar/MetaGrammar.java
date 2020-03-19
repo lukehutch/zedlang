@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import pikaparser.clause.CharSet;
 import pikaparser.clause.Clause;
 import pikaparser.parser.ASTNode;
 import pikaparser.parser.Parser;
@@ -17,18 +16,21 @@ public class MetaGrammar {
 
     private static final String GRAMMAR = "Grammar";
     private static final String LEX = "Lex";
-    private static final String WS = "WS";
+    private static final String WSC = "WhiteSpaceOrComment";
+    private static final String COMMENT = "Comment";
     private static final String RULE = "Rule";
     private static final String CLAUSE = "Clause";
-    private static final String NAME = "Name";
+    private static final String IDENT = "Ident";
     private static final String LABEL = "Label";
     private static final String NAME_CHAR = "NameChar";
     private static final String PARENS = "Parens";
     private static final String SEQ = "Seq";
-    private static final String FIRST_MATCH = "FirstMatch";
+    private static final String FIRST = "First";
     private static final String FOLLOWED_BY = "FollowedBy";
     private static final String NOT_FOLLOWED_BY = "NotFollowedBy";
     private static final String ONE_OR_MORE = "OneOrMore";
+    private static final String ZERO_OR_MORE = "ZeroOrMore";
+    private static final String OPTIONAL = "Optional";
     private static final String CHAR_SET = "CharSet";
     private static final String HEX = "Hex";
     private static final String CHAR_RANGE = "CharRange";
@@ -42,71 +44,76 @@ public class MetaGrammar {
 
     // AST node names:
 
-    private static final String RULE_AST = "Rule";
-    private static final String NAME_AST = "Name";
-    private static final String LABEL_AST = "Label";
-    private static final String SEQ_AST = "Seq";
-    private static final String FIRST_MATCH_AST = "FirstMatch";
-    private static final String FOLLOWED_BY_AST = "FollowedBy";
-    private static final String NOT_FOLLOWED_BY_AST = "NotFollowedBy";
-    private static final String ONE_OR_MORE_AST = "OneOrMore";
-    private static final String SINGLE_QUOTED_CHAR_AST = "SingleQuotedChar";
-    private static final String CHAR_RANGE_AST = "CharRange";
-    private static final String QUOTED_STRING_AST = "QuotedString";
+    private static final String RULE_AST = "RuleASTNode";
+    private static final String IDENT_AST = "IdentASTNode";
+    private static final String LABEL_AST = "LabelASTNode";
+    private static final String SEQ_AST = "SeqASTNode";
+    private static final String FIRST_AST = "FirstASTNode";
+    private static final String FOLLOWED_BY_AST = "FollowedByASTNode";
+    private static final String NOT_FOLLOWED_BY_AST = "NotFollowedByASTNode";
+    private static final String ONE_OR_MORE_AST = "OneOrMoreASTNode";
+    private static final String SINGLE_QUOTED_CHAR_AST = "SingleQuotedCharASTNode";
+    private static final String CHAR_RANGE_AST = "CharRangeASTNode";
+    private static final String QUOTED_STRING_AST = "QuotedStringASTNode";
+    private static final String NOTHING_AST = "NothingASTNode";
 
-    // Basic rules:
+    // Toplevel rule for lex preprocessing (use null to disable lexing):
 
-    public static final Clause ws = r(WS);
-    public static final CharSet WHITESPACE = new CharSet(" \n\r\t");
-    public static final CharSet LETTER = new CharSet(new CharSet('a', 'z'), new CharSet('A', 'Z'));
-    public static final CharSet DIGIT = new CharSet('0', '9');
+    public static final String LEX_RULE_NAME = null; // TODO LEX;
 
-    // Toplevel rule for lex preprocessing (use null to disable lexing)
-
-    public static final String LEX_RULE_NAME = LEX;
+    // Metagrammar:
 
     public static Grammar grammar = new Grammar(LEX_RULE_NAME, Arrays.asList(//
             rule(GRAMMAR, //
-                    seq(start(), ws, oneOrMore(r(RULE)))), //
+                    seq(start(), r(WSC), oneOrMore(r(RULE)))), //
 
             rule(RULE, //
-                    ast(RULE_AST, seq(r(NAME), ws, c('='), ws, r(CLAUSE), ws, c(';'), ws))), //
+                    ast(RULE_AST, seq(r(IDENT), r(WSC), c('='), r(WSC), r(CLAUSE), r(WSC), c(';'), r(WSC)))), //
 
             rule(CLAUSE, //
                     seq( // 
                             optional(r(LABEL)), //
                             first( //
-                                    // This has to come first, since it's right-associative.
-                                    // Otherwise, anything that depends upon Clause will greedily
-                                    // consume a shorter match not including the '+' suffix.
-                                    r(ONE_OR_MORE),
+                                    // These have to come first, since they are right-associative.
+                                    // Otherwise, anything that depends upon these clauses will greedily
+                                    // consume a shorter match not including the '+' or '*' suffix.
+                                    r(ONE_OR_MORE), //
+                                    r(ZERO_OR_MORE), //
+                                    r(OPTIONAL), //
 
                                     r(PARENS), //
                                     r(SEQ), //
-                                    r(FIRST_MATCH), //
+                                    r(FIRST), //
                                     r(FOLLOWED_BY), //
                                     r(NOT_FOLLOWED_BY), //
-                                    r(NAME), //
+                                    r(IDENT), //
                                     r(QUOTED_STRING), //
                                     r(CHAR_SET), //
                                     r(NOTHING), //
                                     r(START)))), //
 
-            rule(LABEL, seq(ast(LABEL_AST, r(NAME)), ws, c(':'), ws)), //
+            rule(LABEL, seq(ast(LABEL_AST, r(IDENT)), r(WSC), c(':'), r(WSC))), //
 
-            rule(PARENS, seq(c('('), ws, r(CLAUSE), c(')'))), //
+            rule(PARENS, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
 
             rule(SEQ, //
-                    ast(SEQ_AST, seq(r(CLAUSE), oneOrMore(seq(ws, r(CLAUSE)))))),
+                    ast(SEQ_AST, seq(r(CLAUSE), oneOrMore(seq(r(WSC), r(CLAUSE)))))),
 
             rule(ONE_OR_MORE, //
-                    ast(ONE_OR_MORE_AST, seq(r(CLAUSE), ws, //
-                            //                                first(str("++"), // TODO: OneOrMoreSuffix
-                            //                                        c('+'))
-                            c('+')))),
+                    seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c('+'))),
 
-            rule(FIRST_MATCH, //
-                    ast(FIRST_MATCH_AST, seq(r(CLAUSE), oneOrMore(seq(ws, c('|'), ws, r(CLAUSE)))))),
+            rule(ZERO_OR_MORE, //
+                    ast(FIRST_AST, first( //
+                            seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')), //
+                            ast(NOTHING_AST, r(NOTHING))))),
+
+            rule(OPTIONAL, //
+                    ast(FIRST_AST, first( //
+                            seq(r(CLAUSE), r(WSC), c('?')), //
+                            ast(NOTHING_AST, r(NOTHING))))),
+
+            rule(FIRST, //
+                    ast(FIRST_AST, seq(r(CLAUSE), oneOrMore(seq(r(WSC), c('|'), r(WSC), r(CLAUSE)))))),
 
             rule(FOLLOWED_BY, //
                     ast(FOLLOWED_BY_AST, seq(c('&'), r(CLAUSE)))),
@@ -118,22 +125,25 @@ public class MetaGrammar {
             rule(LEX, //
                     oneOrMore( //
                             first( //
-                                    r(NAME), //
+                                    c("()=;^*+?|"), //
+                                    r(IDENT), //
                                     r(QUOTED_STRING), //
                                     r(CHAR_SET), //
-                                    new CharSet("()[]=;^"), //
 
-                                    // WS has to come last, since it can match Nothing
-                                    r(WS)) //
+                                    // WS/comment has to come last, since it can match Nothing
+                                    r(WSC)) //
                     )), //
 
-            rule(WS, //
-                    optional(oneOrMore(WHITESPACE))), //
+            rule(WSC, //
+                    optional(first(oneOrMore(c(" \n\r\t")), r(COMMENT)))),
 
-            rule(NAME, //
-                    ast(NAME_AST, oneOrMore(r(NAME_CHAR)))), //
+            rule(COMMENT, //
+                    seq(c('#'), zeroOrMore(c('\n', /* invert = */ true)))),
 
-            rule(NAME_CHAR, new CharSet(LETTER, DIGIT, new CharSet("_-."))),
+            rule(IDENT, //
+                    ast(IDENT_AST, oneOrMore(r(NAME_CHAR)))), //
+
+            rule(NAME_CHAR, c(c('a', 'z'), c('A', 'Z'), c("_-"))),
 
             rule(CHAR_SET, //
                     first( //
@@ -148,16 +158,16 @@ public class MetaGrammar {
             rule(SINGLE_QUOTED_CHAR, //
                     first( //
                             r(ESCAPED_CTRL_CHAR), //
-                            new CharSet("\'\\").invert())), //
+                            c("\'\\").invert())), //
 
-            rule(HEX, new CharSet(DIGIT, new CharSet('a', 'f'), new CharSet('A', 'F'))), //
+            rule(HEX, c(c('0', '9'), c('a', 'f'), c('A', 'F'))), //
 
             rule(CHAR_RANGE, //
                     seq(r(CHAR_RANGE_CHAR), c('-'), r(CHAR_RANGE_CHAR))), //
 
             rule(CHAR_RANGE_CHAR, //
                     first( //
-                            new CharSet('\\', ']').invert(), //
+                            c('\\', ']').invert(), //
                             r(SINGLE_QUOTED_CHAR), //
                             str("\\]"), //
                             str("\\^"))),
@@ -168,7 +178,7 @@ public class MetaGrammar {
             rule(STR_QUOTED_CHAR, //
                     first( //
                             r(ESCAPED_CTRL_CHAR), //
-                            new CharSet("\"\\").invert() //
+                            c("\"\\").invert() //
                     )), //
 
             rule(ESCAPED_CTRL_CHAR, //
@@ -184,7 +194,7 @@ public class MetaGrammar {
                             seq(str("\\u"), r(HEX), r(HEX), r(HEX), r(HEX)))), //
 
             rule(NOTHING, //
-                    seq(c('('), ws, c(')'))),
+                    seq(c('('), r(WSC), c(')'))),
 
             rule(START, c('^')) //
     ));
@@ -267,7 +277,7 @@ public class MetaGrammar {
         case ONE_OR_MORE_AST:
             clause = oneOrMore(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
             break;
-        case FIRST_MATCH_AST:
+        case FIRST_AST:
             clause = first(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
             break;
         case FOLLOWED_BY_AST:
@@ -276,7 +286,7 @@ public class MetaGrammar {
         case NOT_FOLLOWED_BY_AST:
             clause = notFollowedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
             break;
-        case NAME_AST:
+        case IDENT_AST:
             clause = r(clauseNode.getText(input)); // Rule name ref
             break;
         case QUOTED_STRING_AST: // Doesn't include surrounding quotes

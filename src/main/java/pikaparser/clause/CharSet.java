@@ -90,7 +90,7 @@ public class CharSet extends Terminal {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            Collection<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         if (memoKey.startPos >= input.length()) {
             return null;

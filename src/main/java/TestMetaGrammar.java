@@ -9,7 +9,7 @@ public class TestMetaGrammar {
 
     public static void main(String[] args) throws IOException {
         String grammarStr;
-        try (var stream = TestMetaGrammar.class.getClassLoader().getResource("zedGrammarSimple").openStream()) {
+        try (var stream = TestMetaGrammar.class.getClassLoader().getResource("zedGrammar").openStream()) {
             grammarStr = new String(stream.readAllBytes());
         }
 

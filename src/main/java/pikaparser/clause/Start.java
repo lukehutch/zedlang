@@ -1,6 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.Collection;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -27,7 +27,7 @@ public class Start extends Terminal {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            Collection<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         // Match zero characters at beginning of input
         if (memoKey.startPos == 0) {

@@ -1,6 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.Collection;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -10,19 +10,23 @@ import pikaparser.memotable.MemoTable;
 public class CreateASTNode extends Clause {
     CreateASTNode(String astNodeLabel, Clause clause) {
         super(new Clause[] { clause });
-        this.ruleNodeLabel = astNodeLabel;
+        this.ruleASTNodeLabel = astNodeLabel;
     }
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            Collection<MemoEntry> updatedEntries) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = "(" + getClass().getSimpleName() + " " + ruleNodeLabel + ":" + subClauses[0] + ")";
+            var buf = new StringBuilder();
+            appendRulePrefix(buf);
+            buf.append("(" + getClass().getSimpleName() + " " + ruleASTNodeLabel + ":" + subClauses[0] + ")");
+            appendRuleSuffix(buf);
+            toStringCached = buf.toString();
         }
         return toStringCached;
     }

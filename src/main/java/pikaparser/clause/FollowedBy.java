@@ -1,6 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.Collection;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -22,9 +22,9 @@ public class FollowedBy extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            Collection<MemoEntry> updatedEntries) {
         var subClauseMemoKey = new MemoKey(subClauses[0], memoKey.startPos);
-        var subClauseMatch = memoTable.match(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
+        var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
         // Replace any valid subclause match with a zero-char-consuming match
         if (subClauseMatch != null) {
             return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, new Match[] { subClauseMatch },

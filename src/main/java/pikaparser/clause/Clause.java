@@ -2,6 +2,7 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -16,7 +17,7 @@ public abstract class Clause {
     public String ruleName;
     public final Clause[] subClauses;
 
-    public String ruleNodeLabel;
+    public String ruleASTNodeLabel;
     public String[] subClauseASTNodeLabels;
 
     /** The parent clauses to seed when this clause's match memo at a given position changes. */
@@ -81,7 +82,7 @@ public abstract class Clause {
      *            TODO
      */
     public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries);
+            Collection<MemoEntry> updatedEntries);
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -90,8 +91,8 @@ public abstract class Clause {
             buf.append('(');
             buf.append(ruleName);
             buf.append(" = ");
-            if (ruleNodeLabel != null) {
-                buf.append(ruleNodeLabel);
+            if (ruleASTNodeLabel != null) {
+                buf.append(ruleASTNodeLabel);
                 buf.append(':');
             }
         }
@@ -186,11 +187,31 @@ public abstract class Clause {
         return new RuleRef(ruleName);
     }
 
-    public static Clause c(char chr) {
+    public static CharSet c(char chr) {
         return new CharSet(chr);
     }
 
-    public static Clause cRange(String charRanges) {
+    public static CharSet c(char chrStart, char chrEnd) {
+        return new CharSet(chrStart, chrEnd);
+    }
+
+    public static CharSet c(String chrs) {
+        return new CharSet(chrs);
+    }
+
+    public static CharSet c(CharSet...charSets) {
+        return new CharSet(charSets);
+    }
+
+    public static CharSet c(char chr, boolean invert) {
+        var cs = new CharSet(chr);
+        if (invert) {
+            cs.invert();
+        }
+        return cs;
+    }
+
+    public static CharSet cRange(String charRanges) {
         boolean invert = charRanges.startsWith("^");
         List<CharSet> charSets = new ArrayList<>();
         for (int i = invert ? 1 : 0; i < charRanges.length(); i++) {
