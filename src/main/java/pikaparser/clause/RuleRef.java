@@ -1,6 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Collection;
+import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -16,18 +16,15 @@ public class RuleRef extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input, Collection<MemoEntry> updatedEntries) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
+            Set<MemoEntry> updatedEntries) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            var buf = new StringBuilder();
-            appendRulePrefix(buf);
-            buf.append("<" + refdRuleName + ">");
-            appendRuleSuffix(buf);
-            toStringCached = buf.toString();
+            toStringCached = "<" + refdRuleName + ">";
         }
         return toStringCached;
     }

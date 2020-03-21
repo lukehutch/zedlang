@@ -9,7 +9,7 @@ public class TestMetaGrammar {
 
     public static void main(String[] args) throws IOException {
         String grammarStr;
-        try (var stream = TestMetaGrammar.class.getClassLoader().getResource("zedGrammar").openStream()) {
+        try (var stream = TestMetaGrammar.class.getClassLoader().getResource("zedGrammarSmall").openStream()) {
             grammarStr = new String(stream.readAllBytes());
         }
 
@@ -21,7 +21,7 @@ public class TestMetaGrammar {
 
         System.out.println("\nParsed grammar:");
         for (var clause : grammar.allClauses) {
-            System.out.println("    " + clause);
+            System.out.println("    " + clause.toStringWithRuleName());
         }
     }
 

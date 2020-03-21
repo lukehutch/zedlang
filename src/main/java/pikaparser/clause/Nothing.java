@@ -1,6 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Collection;
+import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -16,27 +16,23 @@ public class Nothing extends Terminal {
     }
 
     @Override
-    public void testWhetherAlwaysMatches() {
+    public void testWhetherCanMatchZeroChars() {
     }
 
     // (This shouldn't be called under normal circumstances.)
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Collection<MemoEntry> updatedEntries) {
+            Set<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
-        // Don't call MemoTable.addMatch for terminals, to limit size of memo table
-        memoTable.numMatchObjectsCreated.incrementAndGet();
-        return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
+        // Don't call MemoTable.addMatch for Nothing, to limit size of memo table
+        return new Match(memoTable, memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
+                Match.NO_SUBCLAUSE_MATCHES);
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            var buf = new StringBuilder();
-            appendRulePrefix(buf);
-            buf.append(NOTHING_STR);
-            appendRuleSuffix(buf);
-            toStringCached = buf.toString();
+            toStringCached = NOTHING_STR;
         }
         return toStringCached;
     }

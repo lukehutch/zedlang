@@ -2,11 +2,10 @@ package pikaparser.parser;
 
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
-import pikaparser.clause.Clause;
 import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.clause.Nothing;
+import pikaparser.clause.Start;
 import pikaparser.clause.Terminal;
 import pikaparser.grammar.Grammar;
 import pikaparser.memotable.MemoEntry;
@@ -23,22 +22,23 @@ public class Parser {
 
     private static final boolean PARALLELIZE = true;
 
+    public static final boolean DEBUG = true;
+
     public Parser(Grammar grammar, String input) {
         this.grammar = grammar;
         this.input = input;
 
-        // Active set entries may be updated by multiple sub-clauses in a single step, so this needs to be a set
+        // A set of MemoKey instances for entries that need matching
         var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
-        
-        // Updated entries are not duplicated -- up to one is produced per MemoKey in the active set, so this
-        // doesn't need to be a set
-        var updatedEntries = new ConcurrentLinkedQueue<MemoEntry>();
+
+        // Memo table entries for which new matches were found in the current iteration
+        var updatedEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
 
         // If a lex rule was specified, seed the bottom-up parsing by running the lex rule top-down
         if (grammar.lexRule != null) {
             // Run lex preprocessing step, top-down
-            var match = grammar.lexRule.match(MatchDirection.TOP_DOWN, memoTable,
-                    new MemoKey(grammar.lexRule, /* startPos = */ 0), input, updatedEntries);
+            var match = grammar.lexRule.clause.match(MatchDirection.TOP_DOWN, memoTable,
+                    new MemoKey(grammar.lexRule.clause, /* startPos = */ 0), input, updatedEntries);
             if (match != null) {
                 if (match.len == 0) {
                     // Without testing for zero-length matches, could get stuck in an infinite loop
@@ -47,31 +47,38 @@ public class Parser {
                     throw new IllegalArgumentException("Lex rule did not match whole input (only the first "
                             + match.len + " out of " + input.length() + " characters were matched)");
                 }
+                if (Parser.DEBUG) {
+                    System.out.println("Seed lex match: " + match + "\n");
+                }
             } else {
                 throw new IllegalArgumentException("Lex rule did not match input");
             }
         } else {
-            // Find positions that all terminals match, and create the initial active set from parents of terminals
-            (PARALLELIZE ? grammar.allClauses.parallelStream() : grammar.allClauses.stream()).forEach(clause -> {
-                // Create initial active set by matching all terminals at every character position.
-                if (clause instanceof Terminal && !(clause instanceof Nothing)) {
-                    // Terminals are matched top down, to avoid creating memo table entries for them
-                    for (int startPos = 0; startPos < input.length(); startPos++) {
-                        var memoKey = new MemoKey(clause, startPos);
-                        var match = memoKey.clause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
-                                updatedEntries);
-                        if (match != null) {
-                            for (Clause seedParentClause : clause.seedParentClauses) {
-                                // Add parent clause to active set. This will cause the terminal to be
-                                // evaluated again top-down by the parent clause, but avoids creating a memo
-                                // table entry for the terminal.
-                                MemoKey parentMemoKey = new MemoKey(seedParentClause, startPos);
-                                activeSet.add(parentMemoKey);
+            // Find positions that all terminals match, and create the initial active set from parents of terminals,
+            // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
+            // to be added to the memo table, because the match status of a given terminal at a given position will
+            // never change).
+            (PARALLELIZE ? grammar.allClauses.parallelStream() : grammar.allClauses.stream())
+                    .filter(clause -> clause instanceof Terminal && !clause.seedParentClauses.isEmpty()
+                    // Don't match Nothing everywhere -- it always matches
+                            && !(clause instanceof Nothing))
+                    .forEach(clause -> {
+                        // Terminals are matched top down
+                        for (int startPos = 0; startPos < input.length(); startPos++) {
+                            var memoKey = new MemoKey(clause, startPos);
+                            var match = clause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
+                                    updatedEntries);
+                            if (match != null) {
+                                if (Parser.DEBUG) {
+                                    System.out.println("Initial terminal match: " + match + "\n");
+                                }
+                            }
+                            if (clause instanceof Start) {
+                                // Only match Start in the first position
+                                break;
                             }
                         }
-                    }
-                }
-            });
+                    });
         }
 
         // Main parsing loop
@@ -90,6 +97,9 @@ public class Parser {
             // For each MemoEntry in newMatches, find best new match, and if the match 
             // improves, add the MemoEntry to activeSet for the next round
             (PARALLELIZE ? updatedEntries.parallelStream() : updatedEntries.stream()).forEach(memoEntry -> {
+                if (memoEntry.toString().equals("(P0 = P0:(((operand0:(<P1> | <P0>) (ADD:'+' | SUB:'-') operand1:<P1>) | <P1>))) : 6+8")) {
+                    System.out.println("here");
+                }
                 memoEntry.updateBestMatch(input, activeSet);
             });
 

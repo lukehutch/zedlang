@@ -2,22 +2,23 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import pikaparser.grammar.Rule;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public abstract class Clause {
-    public String ruleName;
+    public Set<String> ruleNames = new HashSet<>();
     public final Clause[] subClauses;
 
-    public String ruleASTNodeLabel;
+    public String astNodeLabel;
     public String[] subClauseASTNodeLabels;
 
     /** The parent clauses to seed when this clause's match memo at a given position changes. */
@@ -27,16 +28,12 @@ public abstract class Clause {
     public boolean canMatchZeroChars;
 
     protected String toStringCached;
+    protected String toStringWithRuleNameCached;
 
     // -------------------------------------------------------------------------------------------------------------
 
     protected Clause(Clause... subClauses) {
         this.subClauses = subClauses;
-    }
-
-    protected Clause(String ruleName, Clause... subClauses) {
-        this(subClauses);
-        this.ruleName = ruleName;
     }
 
     /**
@@ -47,7 +44,7 @@ public abstract class Clause {
      * position.
      */
     protected List<Clause> getSeedSubClauses() {
-        return subClauses.length == 0 ? Collections.emptyList() : Arrays.asList(subClauses[0]);
+        return subClauses.length == 0 ? Collections.emptyList() : Arrays.asList(subClauses);
     }
 
     /** For all seed subclauses, add backlink from subclause to this clause. */
@@ -66,7 +63,7 @@ public abstract class Clause {
      * <p>
      * Overridden in subclasses.
      */
-    public void testWhetherAlwaysMatches() {
+    public void testWhetherCanMatchZeroChars() {
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -82,39 +79,43 @@ public abstract class Clause {
      *            TODO
      */
     public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Collection<MemoEntry> updatedEntries);
+            Set<MemoEntry> updatedEntries);
 
     // -------------------------------------------------------------------------------------------------------------
 
-    protected void appendRulePrefix(StringBuilder buf) {
-        if (ruleName != null) {
-            buf.append('(');
-            buf.append(ruleName);
-            buf.append(" = ");
-            if (ruleASTNodeLabel != null) {
-                buf.append(ruleASTNodeLabel);
-                buf.append(':');
+    public String toStringWithRuleName() {
+        if (toStringWithRuleNameCached == null) {
+            if (!ruleNames.isEmpty()) {
+                StringBuilder buf = new StringBuilder();
+                buf.append('(');
+                buf.append(String.join(", ", ruleNames.stream().sorted().collect(Collectors.toList())));
+                buf.append(" = ");
+                if (astNodeLabel != null) {
+                    // Rule has AST label on toplevel clause (other AST labels are recorded for subclauses)
+                    buf.append(astNodeLabel);
+                    buf.append(':');
+                }
+                buf.append(toString());
+                buf.append(')');
+                toStringWithRuleNameCached = buf.toString();
+            } else {
+                toStringWithRuleNameCached = toString();
             }
         }
-    }
-
-    protected void appendRuleSuffix(StringBuilder buf) {
-        if (ruleName != null) {
-            buf.append(')');
-        }
+        return toStringWithRuleNameCached;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     // Clause factories, for clause optimization and sanity checking
 
-    public static Clause rule(String ruleName, Clause ruleClause) {
-        ruleClause.ruleName = ruleName;
-        return ruleClause;
+    public static Rule rule(String ruleName, Clause ruleClause) {
+        return new Rule(ruleName, ruleClause);
     }
 
-    public static Clause ast(String astLabel, Clause clause) {
-        return new CreateASTNode(astLabel, clause);
+    public static Clause ast(String astNodeLabel, Clause clause) {
+        clause.astNodeLabel = astNodeLabel;
+        return clause;
     }
 
     public static Clause oneOrMore(Clause subClause) {
@@ -145,6 +146,10 @@ public abstract class Clause {
             }
         }
         return new First(subClauses);
+    }
+
+    public static Clause first(List<Clause> subClauses) {
+        return first(subClauses.toArray(new Clause[0]));
     }
 
     public static Clause followedBy(Clause subClause) {
@@ -183,6 +188,10 @@ public abstract class Clause {
         return new Seq(subClauses);
     }
 
+    public static Clause seq(List<Clause> subClauses) {
+        return new Seq(subClauses);
+    }
+
     public static Clause r(String ruleName) {
         return new RuleRef(ruleName);
     }
@@ -199,7 +208,7 @@ public abstract class Clause {
         return new CharSet(chrs);
     }
 
-    public static CharSet c(CharSet...charSets) {
+    public static CharSet c(CharSet... charSets) {
         return new CharSet(charSets);
     }
 

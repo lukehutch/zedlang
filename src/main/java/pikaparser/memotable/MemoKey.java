@@ -31,6 +31,10 @@ public class MemoKey {
         return this.clause == other.clause && this.startPos == other.startPos;
     }
 
+    public String toStringWithRuleName() {
+        return clause.toStringWithRuleName() + " : " + startPos;
+    }
+
     @Override
     public String toString() {
         return clause + " : " + startPos;

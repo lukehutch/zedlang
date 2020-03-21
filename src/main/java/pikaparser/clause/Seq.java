@@ -1,8 +1,8 @@
 package pikaparser.clause;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -13,9 +13,9 @@ public class Seq extends Clause {
 
     Seq(Clause... subClauses) {
         super(subClauses);
-        if (subClauses.length < 2) {
-            throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
-        }
+        //        if (subClauses.length < 2) {
+        //            throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
+        //        }
     }
 
     public Seq(List<Clause> subClauses) {
@@ -23,7 +23,7 @@ public class Seq extends Clause {
     }
 
     @Override
-    public void testWhetherAlwaysMatches() {
+    public void testWhetherCanMatchZeroChars() {
         // For Seq, all subclauses must always match for the whole clause to always match
         canMatchZeroChars = true;
         for (Clause subClause : subClauses) {
@@ -51,13 +51,14 @@ public class Seq extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Collection<MemoEntry> updatedEntries) {
+            Set<MemoEntry> updatedEntries) {
         Match[] subClauseMatches = null;
         var currStartPos = memoKey.startPos;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
-            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
+            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey,
+                    updatedEntries);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 return null;
@@ -75,7 +76,6 @@ public class Seq extends Clause {
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
-            appendRulePrefix(buf);
             buf.append('(');
             for (int i = 0; i < subClauses.length; i++) {
                 if (i > 0) {
@@ -88,7 +88,6 @@ public class Seq extends Clause {
                 buf.append(subClauses[i].toString());
             }
             buf.append(')');
-            appendRuleSuffix(buf);
             toStringCached = buf.toString();
         }
         return toStringCached;

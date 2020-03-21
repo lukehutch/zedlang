@@ -1,8 +1,6 @@
 package pikaparser.clause;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.Set;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
@@ -20,7 +18,7 @@ public class First extends Clause {
 
 
     @Override
-    public void testWhetherAlwaysMatches() {
+    public void testWhetherCanMatchZeroChars() {
         for (int i = 0; i < subClauses.length; i++) {
             Clause subClause = subClauses[i];
             if (subClause.canMatchZeroChars) {
@@ -36,14 +34,8 @@ public class First extends Clause {
     }
 
     @Override
-    public List<Clause> getSeedSubClauses() {
-        // Any sub-clause could be the matching clause, so need to override this
-        return Arrays.asList(subClauses);
-    }
-
-    @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Collection<MemoEntry> updatedEntries) {
+            Set<MemoEntry> updatedEntries) {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
@@ -59,7 +51,6 @@ public class First extends Clause {
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
-            appendRulePrefix(buf);
             buf.append('(');
             for (int i = 0; i < subClauses.length; i++) {
                 if (i > 0) {
@@ -72,7 +63,6 @@ public class First extends Clause {
                 buf.append(subClauses[i].toString());
             }
             buf.append(')');
-            appendRuleSuffix(buf);
             toStringCached = buf.toString();
         }
         return toStringCached;

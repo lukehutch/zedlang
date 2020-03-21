@@ -74,6 +74,13 @@ public class ASTNode {
         throw new IllegalArgumentException("Node not found: \"" + name + "\"");
     }
 
+    public ASTNode getOnlyChild() {
+        if (children.size() != 1) {
+            throw new IllegalArgumentException("Expected one child, got " + children.size());
+        }
+        return children.get(0);
+    }
+
     public ASTNode getFirstChild() {
         if (children.size() < 1) {
             throw new IllegalArgumentException("No first child");

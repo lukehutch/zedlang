@@ -5,7 +5,6 @@ import static pikaparser.clause.Clause.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import pikaparser.clause.Clause;
 import pikaparser.parser.ASTNode;
@@ -44,22 +43,25 @@ public class MetaGrammar {
 
     // AST node names:
 
-    private static final String RULE_AST = "RuleASTNode";
-    private static final String IDENT_AST = "IdentASTNode";
-    private static final String LABEL_AST = "LabelASTNode";
-    private static final String SEQ_AST = "SeqASTNode";
-    private static final String FIRST_AST = "FirstASTNode";
-    private static final String FOLLOWED_BY_AST = "FollowedByASTNode";
-    private static final String NOT_FOLLOWED_BY_AST = "NotFollowedByASTNode";
-    private static final String ONE_OR_MORE_AST = "OneOrMoreASTNode";
-    private static final String SINGLE_QUOTED_CHAR_AST = "SingleQuotedCharASTNode";
-    private static final String CHAR_RANGE_AST = "CharRangeASTNode";
-    private static final String QUOTED_STRING_AST = "QuotedStringASTNode";
-    private static final String NOTHING_AST = "NothingASTNode";
+    private static final String RULE_AST = "RuleAST";
+    private static final String IDENT_AST = "IdentAST";
+    private static final String LABEL_AST = "LabelAST";
+    private static final String SEQ_AST = "SeqAST";
+    private static final String FIRST_AST = "FirstAST";
+    private static final String FOLLOWED_BY_AST = "FollowedByAST";
+    private static final String NOT_FOLLOWED_BY_AST = "NotFollowedByAST";
+    private static final String ONE_OR_MORE_AST = "OneOrMoreAST";
+    private static final String ZERO_OR_MORE_AST = "ZeroOrMoreAST";
+    private static final String OPTIONAL_AST = "OptionalAST";
+    private static final String SINGLE_QUOTED_CHAR_AST = "SingleQuotedCharAST";
+    private static final String CHAR_RANGE_AST = "CharRangeAST";
+    private static final String QUOTED_STRING_AST = "QuotedStringAST";
+    private static final String START_AST = "StartAST";
+    private static final String NOTHING_AST = "NothingAST";
 
     // Toplevel rule for lex preprocessing (use null to disable lexing):
 
-    public static final String LEX_RULE_NAME = null; // TODO LEX;
+    public static final String LEX_RULE_NAME = LEX;
 
     // Metagrammar:
 
@@ -74,18 +76,32 @@ public class MetaGrammar {
                     seq( // 
                             optional(r(LABEL)), //
                             first( //
-                                    // These have to come first, since they are right-associative.
-                                    // Otherwise, anything that depends upon these clauses will greedily
-                                    // consume a shorter match not including the '+' or '*' suffix.
+                                    // Seq and First must come first, because they match sequences of clauses.
+                                    // If they are not first, then the CLAUSE rule will greedily match a single
+                                    // earlier subclause (e.g. ONE_OR_MORE) and will never visit SEQ or FIRST.
+                                    // Also, counterintuitively, SEQ should come before FIRST so that (A A | B B)
+                                    // parses as ((A A) | (B B)), and not (A (A | B) B). SEQ is shorter than FIRST,
+                                    // so SEQ would be matched greedily, and FIRST would never match, if SEQ
+                                    // came before FIRST;
+                                    r(SEQ), //
+                                    r(FIRST), //
+
+                                    // Parens are required for OneOrMore, ZeroOrMore and Optional, otherwise
+                                    // expressions like (Clause1 Clause2+) would be parsed as
+                                    // ((Clause1 Clause2)+) rather than (Clause1 (Clause2)+).
+                                    // These have to come before PARENS, since they are right-associative.
+                                    // Otherwise, a sequence like "(X)+" will be matched as "(X)" and the "+"
+                                    // will never be reached.
                                     r(ONE_OR_MORE), //
                                     r(ZERO_OR_MORE), //
                                     r(OPTIONAL), //
 
                                     r(PARENS), //
-                                    r(SEQ), //
-                                    r(FIRST), //
+
                                     r(FOLLOWED_BY), //
                                     r(NOT_FOLLOWED_BY), //
+
+                                    // Finally match individual tokens (these are the shortest clause types)
                                     r(IDENT), //
                                     r(QUOTED_STRING), //
                                     r(CHAR_SET), //
@@ -97,23 +113,23 @@ public class MetaGrammar {
             rule(PARENS, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
 
             rule(SEQ, //
-                    ast(SEQ_AST, seq(r(CLAUSE), oneOrMore(seq(r(WSC), r(CLAUSE)))))),
+                    ast(SEQ_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(r(CLAUSE), r(WSC)))))),
 
             rule(ONE_OR_MORE, //
-                    seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c('+'))),
+                    seq(c('('), r(WSC), ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), str(")+"))),
 
             rule(ZERO_OR_MORE, //
-                    ast(FIRST_AST, first( //
-                            seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')), //
-                            ast(NOTHING_AST, r(NOTHING))))),
+                    ast(ZERO_OR_MORE_AST, first( //
+                            seq(c('('), r(WSC), ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), str(")*")), //
+                            r(NOTHING)))),
 
             rule(OPTIONAL, //
-                    ast(FIRST_AST, first( //
-                            seq(r(CLAUSE), r(WSC), c('?')), //
-                            ast(NOTHING_AST, r(NOTHING))))),
+                    ast(OPTIONAL_AST, first( //
+                            seq(c('('), r(WSC), r(CLAUSE), r(WSC), str(")?")), //
+                            r(NOTHING)))),
 
             rule(FIRST, //
-                    ast(FIRST_AST, seq(r(CLAUSE), oneOrMore(seq(r(WSC), c('|'), r(WSC), r(CLAUSE)))))),
+                    ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('|'), r(WSC), r(CLAUSE), r(WSC)))))),
 
             rule(FOLLOWED_BY, //
                     ast(FOLLOWED_BY_AST, seq(c('&'), r(CLAUSE)))),
@@ -125,7 +141,17 @@ public class MetaGrammar {
             rule(LEX, //
                     oneOrMore( //
                             first( //
-                                    c("()=;^*+?|"), //
+                                    c('('), //
+                                    c(')'), //
+                                    c('='), //
+                                    c(';'), //
+                                    c(':'), //
+                                    c('^'), //
+                                    c('*'), //
+                                    c('+'), //
+                                    c('?'), //
+                                    c('|'), //
+                                    c('^'), //
                                     r(IDENT), //
                                     r(QUOTED_STRING), //
                                     r(CHAR_SET), //
@@ -135,7 +161,7 @@ public class MetaGrammar {
                     )), //
 
             rule(WSC, //
-                    optional(first(oneOrMore(c(" \n\r\t")), r(COMMENT)))),
+                    zeroOrMore(first(c(" \n\r\t"), r(COMMENT)))),
 
             rule(COMMENT, //
                     seq(c('#'), zeroOrMore(c('\n', /* invert = */ true)))),
@@ -168,7 +194,8 @@ public class MetaGrammar {
             rule(CHAR_RANGE_CHAR, //
                     first( //
                             c('\\', ']').invert(), //
-                            r(SINGLE_QUOTED_CHAR), //
+                            r(ESCAPED_CTRL_CHAR), //
+                            str("\\\\"), //
                             str("\\]"), //
                             str("\\^"))),
 
@@ -194,9 +221,9 @@ public class MetaGrammar {
                             seq(str("\\u"), r(HEX), r(HEX), r(HEX), r(HEX)))), //
 
             rule(NOTHING, //
-                    seq(c('('), r(WSC), c(')'))),
+                    ast(NOTHING_AST, seq(c('('), r(WSC), c(')')))),
 
-            rule(START, c('^')) //
+            rule(START, ast(START_AST, c('^'))) //
     ));
 
     private static int hexDigitToInt(char c) {
@@ -263,50 +290,91 @@ public class MetaGrammar {
         return buf.toString();
     }
 
-    private static Clause[] parseClauses(List<ASTNode> clauseNodes, String input) {
-        return clauseNodes.stream().map(clauseNode -> parseClause(clauseNode, input)).collect(Collectors.toList())
-                .toArray(new Clause[0]);
+    private static List<Clause> parseClauses(List<ASTNode> astNodes, String input) {
+        List<Clause> clauses = new ArrayList<>(astNodes.size());
+        String nextNodeLabel = null;
+        for (int i = 0; i < astNodes.size(); i++) {
+            var astNode = astNodes.get(i);
+            if (astNode.astLabel.equals(LABEL_AST)) {
+                // A label AST node precedes the labeled clause
+                nextNodeLabel = astNode.getText(input);
+            } else {
+                // Convert from ASTNode to Clause
+                var clause = parseClause(astNode, input);
+                if (nextNodeLabel != null) {
+                    // Label the Clause with the preceding label, if present
+                    clause.astNodeLabel = nextNodeLabel;
+                    nextNodeLabel = null;
+                }
+                clauses.add(clause);
+            }
+        }
+        return clauses;
     }
 
-    private static Clause parseClause(ASTNode clauseNode, String input) {
+    private static Clause expectOne(List<Clause> clauses) {
+        if (clauses.size() != 1) {
+            throw new IllegalArgumentException("Expected one clause, got " + clauses.size());
+        }
+        return clauses.get(0);
+    }
+
+    private static Clause parseClause(ASTNode astNode, String input) {
         Clause clause;
-        switch (clauseNode.astLabel) {
+        switch (astNode.astLabel) {
         case SEQ_AST:
-            clause = seq(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
-            break;
-        case ONE_OR_MORE_AST:
-            clause = oneOrMore(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
+            clause = seq(parseClauses(astNode.children, input));
             break;
         case FIRST_AST:
-            clause = first(parseClauses(clauseNode.getAllDescendantsNamed(CLAUSE), input));
+            clause = first(parseClauses(astNode.children, input));
+            break;
+        case ONE_OR_MORE_AST:
+            clause = oneOrMore(expectOne(parseClauses(astNode.children, input)));
+            break;
+        case ZERO_OR_MORE_AST:
+            clause = zeroOrMore(expectOne(parseClauses(astNode.children, input)));
+            break;
+        case OPTIONAL_AST:
+            clause = optional(expectOne(parseClauses(astNode.children, input)));
             break;
         case FOLLOWED_BY_AST:
-            clause = followedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
+            clause = followedBy(expectOne(parseClauses(astNode.children, input)));
             break;
         case NOT_FOLLOWED_BY_AST:
-            clause = notFollowedBy(parseClause(clauseNode.getFirstDescendantNamed(CLAUSE), input));
+            clause = notFollowedBy(expectOne(parseClauses(astNode.children, input)));
             break;
         case IDENT_AST:
-            clause = r(clauseNode.getText(input)); // Rule name ref
+            clause = r(astNode.getText(input)); // Rule name ref
             break;
         case QUOTED_STRING_AST: // Doesn't include surrounding quotes
-            clause = str(unescapeString(clauseNode.getText(input)));
+            clause = str(unescapeString(astNode.getText(input)));
             break;
         case SINGLE_QUOTED_CHAR_AST:
-            clause = c(unescapeChar(clauseNode.getText(input)));
+            clause = c(unescapeChar(astNode.getText(input)));
+            break;
+        case START_AST:
+            clause = start();
+            break;
+        case NOTHING_AST:
+            clause = nothing();
             break;
         case CHAR_RANGE_AST:
-            clause = cRange(unescapeString(clauseNode.getText(input)));
+            String text = unescapeString(astNode.getText(input));
+            boolean invert = text.startsWith("^");
+            if (invert) {
+                text = text.substring(1);
+            }
+            clause = invert ? cRange(text).invert() : cRange(text);
             break;
         default:
-            // Keep recursing for parens (the only type of CLAUSE that doesn't have a label)
-            clause = parseClause(clauseNode, input);
+            // Keep recursing for parens (the only type of AST node that doesn't have a label)
+            clause = expectOne(parseClauses(astNode.children, input));
             break;
         }
         // Insert CreateASTNode node into grammar if there is an AST node label 
-        String astNodeLabel = clauseNode.children.size() > 0
-                && clauseNode.getFirstChild().astLabel.equals(LABEL_AST) ? clauseNode.getFirstChild().getText(input)
-                        : null;
+        String astNodeLabel = astNode.children.size() > 0 && astNode.getFirstChild().astLabel.equals(LABEL_AST)
+                ? astNode.getFirstChild().getText(input)
+                : null;
         if (astNodeLabel != null) {
             // Wrap clause in CreateASTNode node, if it is labeled
             clause = ast(astNodeLabel, clause);
@@ -314,13 +382,13 @@ public class MetaGrammar {
         return clause;
     }
 
-    private static Clause parseRule(ASTNode ruleNode, String input) {
+    private static Rule parseRule(ASTNode ruleNode, String input) {
         if (ruleNode.children.size() != 2) {
             throw new IllegalArgumentException("Expected 2 children; got " + ruleNode.children.size());
         }
         String name = ruleNode.getFirstChild().getText(input);
-        ASTNode clauseNode = ruleNode.getSecondChild();
-        Clause clause = parseClause(clauseNode, input);
+        ASTNode astNode = ruleNode.getSecondChild();
+        Clause clause = parseClause(astNode, input);
         return rule(name, clause);
     }
 
@@ -331,20 +399,20 @@ public class MetaGrammar {
         } else if (topLevelMatches.size() > 1) {
             throw new IllegalArgumentException("Multiple toplevel matches");
         }
-        var topLevelASTNode = topLevelMatches.get(0).toAST(parser.input);
-        List<Clause> ruleClauses = new ArrayList<>();
+        var topLevelASTNode = topLevelMatches.get(0).toAST("<root>", parser.input);
+        List<Rule> rules = new ArrayList<>();
         String lexRuleName = null;
         for (ASTNode astNode : topLevelASTNode.children) {
             if (!astNode.astLabel.equals(RULE_AST)) {
                 throw new IllegalArgumentException("Wrong node type");
             }
-            Clause rule = parseRule(astNode, parser.input);
-            ruleClauses.add(rule);
+            Rule rule = parseRule(astNode, parser.input);
+            rules.add(rule);
             if (rule.ruleName != null && rule.ruleName.equals(LEX)) {
                 // If a rule is named "Lex", then use that as the toplevel lex rule
                 lexRuleName = LEX;
             }
         }
-        return new Grammar(lexRuleName, ruleClauses);
+        return new Grammar(lexRuleName, rules);
     }
 }

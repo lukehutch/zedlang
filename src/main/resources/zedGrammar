@@ -5,11 +5,11 @@ Lex = WS | Ident | EnumConst | Num | LParen | RParen | Eq | Semi | Dot;
 
 WS = (' ' | '\t' | '\n' | '\r' | '\f')+;
 
-Ident = [a-zA-Z_][a-zA-Z0-9_]*;
+Ident = [a-zA-Z_]([a-zA-Z0-9_])*;
 
 EnumConst = '#' Ident;
 
-Num = [0-9]+ | ([0-9]+? '.' [0-9]+ [fFdD]?);
+Num = ([0-9])+ | ((([0-9])+)? '.' ([0-9])+ ([fFdD])?);
 
 LParen = '('; 
 RParen = ')'; 
@@ -19,7 +19,7 @@ Dot = '.';
 
 # Post-lex grammar:
 
-Program = ^ WS Import+ (statement:Statement)+;
+Program = ^ WS (Import)+ (statement:Statement)+;
 
 Import = "import" WS import:Package WS Semi;
 
@@ -27,7 +27,7 @@ Package = Ident (Dot Package)?;
 
 Statement = Ident WS Eq WS Expr WS Semi;
 
-Expr = Term 
+Expr = Term | Term '+' Term | Term '*' Term; # TODO
 
 Term = Ident | EnumConst | Num;
 

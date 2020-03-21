@@ -70,7 +70,7 @@ public class CharSet extends Terminal {
         return this;
     }
 
-    public boolean matches(MemoKey memoKey, String input) {
+    private boolean matches(MemoKey memoKey, String input) {
         boolean matches = !charSet.isEmpty() //
                 && (invertMatch ^ charSet.contains(input.charAt(memoKey.startPos)));
         if (matches) {
@@ -90,94 +90,111 @@ public class CharSet extends Terminal {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Collection<MemoEntry> updatedEntries) {
+            Set<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         if (memoKey.startPos >= input.length()) {
             return null;
         }
         if (matches(memoKey, input)) {
-            // Don't call MemoTable.addMatch for terminals, to limit size of memo table
-            memoTable.numMatchObjectsCreated.incrementAndGet();
-            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1,
-                    Match.NO_SUBCLAUSE_MATCHES);
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1, updatedEntries);
         }
+        // Don't call MemoTable.addMatch for terminals that don't match, to limit size of memo table
         return null;
+    }
+
+    private void toString(StringBuilder buf) {
+        var charsSorted = new ArrayList<>(charSet);
+        Collections.sort(charsSorted);
+        boolean isSingleChar = !invertMatch && charsSorted.size() == 1;
+        if (isSingleChar) {
+            char c = charsSorted.iterator().next();
+            if (c == '\'') {
+                buf.append("'\\''");
+            } else if (c == '\\') {
+                buf.append("'\\\\'");
+            } else if (c >= 32 && c <= 126) {
+                buf.append("'" + c + "'");
+            } else if (c == '\n') {
+                buf.append("'\\n'");
+            } else if (c == '\r') {
+                buf.append("'\\r'");
+            } else if (c == '\t') {
+                buf.append("'\\t'");
+            } else if (c == '\f') {
+                buf.append("'\\f'");
+            } else {
+                buf.append("'\\u" + String.format("%04x", (int) c) + "'");
+            }
+        } else {
+            if (!charsSorted.isEmpty()) {
+                buf.append('[');
+                if (invertMatch) {
+                    buf.append('^');
+                }
+                for (int i = 0; i < charsSorted.size(); i++) {
+                    char c = charsSorted.get(i);
+                    if (c == '\\') {
+                        buf.append("\\\\");
+                    } else if (c == ']') {
+                        buf.append("\\]");
+                    } else if (c == '[') {
+                        buf.append("\\[");
+                    } else if (c == '^' && i == 0) {
+                        buf.append("\\^");
+                    } else if (c >= 32 && c <= 126) {
+                        buf.append(c);
+                    } else if (c == '\n') {
+                        buf.append("\\n");
+                    } else if (c == '\r') {
+                        buf.append("\\r");
+                    } else if (c == '\t') {
+                        buf.append("\\t");
+                    } else {
+                        buf.append("\\u" + String.format("%04x", (int) c));
+                    }
+                    int j = i + 1;
+                    while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
+                        j++;
+                    }
+                    if (j > i + 2) {
+                        buf.append("-");
+                        i = j - 1;
+                        buf.append(charsSorted.get(i));
+                    }
+                }
+                buf.append(']');
+            }
+        }
+    }
+
+    private void getCharSets(List<CharSet> charSets) {
+        if (!charSet.isEmpty()) {
+            charSets.add(this);
+        }
+        for (var subCharSet : subCharSets) {
+            subCharSet.getCharSets(charSets);
+        }
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
+            List<CharSet> charSets = new ArrayList<>();
+            getCharSets(charSets);
             var buf = new StringBuilder();
-            appendRulePrefix(buf);
-            var charsSorted = new ArrayList<>(charSet);
-            Collections.sort(charsSorted);
-            boolean isSingleChar = !invertMatch && charsSorted.size() == 1;
-            if (isSingleChar) {
-                char c = charsSorted.iterator().next();
-                if (c == '\'') {
-                    buf.append("'\\''");
-                } else if (c == '\\') {
-                    buf.append("'\\\\'");
-                } else if (c >= 32 && c <= 126) {
-                    buf.append("'" + c + "'");
-                } else if (c == '\n') {
-                    buf.append("'\\n'");
-                } else if (c == '\r') {
-                    buf.append("'\\r'");
-                } else if (c == '\t') {
-                    buf.append("'\\t'");
-                } else if (c == '\f') {
-                    buf.append("'\\f'");
-                } else {
-                    buf.append("'\\u" + String.format("%04x", (int) c) + "'");
-                }
-            } else {
-                if (!charsSorted.isEmpty()) {
-                    buf.append('[');
-                    if (invertMatch) {
-                        buf.append('^');
-                    }
-                    for (int i = 0; i < charsSorted.size(); i++) {
-                        char c = charsSorted.get(i);
-                        if (c == '\\') {
-                            buf.append("\\\\");
-                        } else if (c == ']') {
-                            buf.append("\\]");
-                        } else if (c == '[') {
-                            buf.append("\\[");
-                        } else if (c == '^' && i == 0) {
-                            buf.append("\\^");
-                        } else if (c >= 32 && c <= 126) {
-                            buf.append(c);
-                        } else if (c == '\n') {
-                            buf.append("\\n");
-                        } else if (c == '\r') {
-                            buf.append("\\r");
-                        } else if (c == '\t') {
-                            buf.append("\\t");
-                        } else {
-                            buf.append("\\u" + String.format("%04x", (int) c));
-                        }
-                        int j = i + 1;
-                        while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
-                            j++;
-                        }
-                        if (j > i + 2) {
-                            buf.append("-");
-                            i = j - 1;
-                            buf.append(charsSorted.get(i));
-                        }
-                    }
-                    buf.append(']');
-                }
-                for (var subCharSet : subCharSets) {
-                    if (buf.length() > 0) {
-                        buf.append(" | ");
-                    }
-                    buf.append(subCharSet.toString());
-                }
+            if (charSets.size() > 1) {
+                buf.append('(');
             }
-            appendRuleSuffix(buf);
+            int startLen = buf.length();
+            for (var charSet : charSets) {
+                if (buf.length() > startLen) {
+                    buf.append(" | ");
+                }
+                charSet.toString(buf);
+            }
+            if (charSets.size() > 1) {
+                buf.append(')');
+            }
             toStringCached = buf.toString();
         }
         return toStringCached;
