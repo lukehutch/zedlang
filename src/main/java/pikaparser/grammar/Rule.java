@@ -15,7 +15,7 @@ public class Rule {
 
     public Rule(String ruleName, Clause clause) {
         this.ruleName = ruleName;
-        clause.ruleNames.add(ruleName);
+        clause.addRuleName(ruleName);
 
         this.astNodeLabel = clause.astNodeLabel;
         clause.astNodeLabel = null;
@@ -100,26 +100,35 @@ public class Rule {
     /** Resolve {@link RuleRef} clauses to a reference to the named rule. */
     public void resolveRuleRefs(Map<String, Rule> ruleNameToRule, Set<Clause> visited) {
         if (clause instanceof RuleRef) {
-            // Look up rule from name in RuleRef
-            String refdRuleName = ((RuleRef) clause).refdRuleName;
-            var refdRule = ruleNameToRule.get(refdRuleName);
-            if (refdRule == null) {
-                throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
-            }
-            if (refdRule.clause == clause) {
-                throw new IllegalArgumentException("Rule refers to itself: " + clause);
+            // Follow a chain of toplevel RuleRef instances
+            Set<Clause> chainVisited = new HashSet<>();
+            var currClause = clause;
+            while (currClause instanceof RuleRef) {
+                if (!chainVisited.add(currClause)) {
+                    throw new IllegalArgumentException("Cycle in toplevel " + RuleRef.class.getSimpleName()
+                            + " references: " + currClause.toStringWithRuleName());
+                }
+                // Look up rule from name in RuleRef
+                String refdRuleName = ((RuleRef) currClause).refdRuleName;
+                var refdRule = ruleNameToRule.get(refdRuleName);
+                if (refdRule == null) {
+                    throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
+                }
+
+                // In case the referenced rule creates an AST node, add the AST node label
+                if (astNodeLabel == null) {
+                    astNodeLabel = refdRule.astNodeLabel;
+                }
+
+                // Set current clause to toplevel clause of referenced rule
+                currClause = refdRule.clause;
+                
+                // Record rule name of referring rule
+                currClause.addRuleName(ruleName);
             }
 
             // Replace RuleRef with direct reference to the named rule 
-            clause = refdRule.clause;
-
-            // In case the referenced rule creates an AST node, add the AST node label
-            if (astNodeLabel == null) {
-                astNodeLabel = refdRule.astNodeLabel;
-            }
-
-            // If a rule's toplevel clause is a RuleRef, then the referenced rule now has two rule labels
-            refdRule.clause.ruleNames.add(ruleName);
+            clause = currClause;
 
         } else {
             // Recurse through subclause tree if toplevel clause was not a RuleRef 
@@ -157,7 +166,7 @@ public class Rule {
     public void intern(Map<String, Clause> toStringToClause, Set<Clause> visited) {
         var internedClause = intern(clause, toStringToClause, visited);
         if (internedClause != clause) {
-            internedClause.ruleNames.addAll(clause.ruleNames);
+            internedClause.addRuleNames(clause.ruleNames);
             clause = internedClause;
         }
     }

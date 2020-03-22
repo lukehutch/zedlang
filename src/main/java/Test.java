@@ -29,7 +29,8 @@ public class Test {
             // String grammarStr = "a + b - c + d - e -  - x - y";
             // String grammarStr = "a=x:yz";
             
-            String grammarStr = "1*2+3*(4+-5)*6";
+            //String grammarStr = "1*2+3*(4+-5)*6";
+            String grammarStr = "1+2+3*4+4*5/(3+((4))*--7)+5";
 
             Parser parser = new Parser(PrecedenceGrammar.grammar, grammarStr);
             //            Parser parser = new Parser(new Grammar(Arrays.asList( //
@@ -38,7 +39,7 @@ public class Test {
             //                    rule("Name", oneOrMore(new CharSet('a', 'z'))) //
             //            )), grammarStr);
 
-            ParserInfo.printParseResult(parser, "P0");
+            ParserInfo.printParseResult(parser, "P0", false);
         }
     }
 

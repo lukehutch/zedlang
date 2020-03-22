@@ -15,7 +15,7 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public abstract class Clause {
-    public Set<String> ruleNames = new HashSet<>();
+    public Set<String> ruleNames;
     public final Clause[] subClauses;
 
     public String astNodeLabel;
@@ -35,6 +35,22 @@ public abstract class Clause {
     protected Clause(Clause... subClauses) {
         this.subClauses = subClauses;
     }
+
+    public void addRuleName(String ruleName) {
+        if (ruleNames == null) {
+            ruleNames = new HashSet<>();
+        }
+        ruleNames.add(ruleName);
+    }
+
+    public void addRuleNames(Set<String> ruleNamesSet) {
+        if (ruleNamesSet == null) {
+            ruleNamesSet = new HashSet<>();
+        }
+        ruleNamesSet.addAll(ruleNamesSet);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the list of subclause(s) that are "seed clauses" (first clauses that will be matched in the starting
@@ -85,7 +101,7 @@ public abstract class Clause {
 
     public String toStringWithRuleName() {
         if (toStringWithRuleNameCached == null) {
-            if (!ruleNames.isEmpty()) {
+            if (ruleNames != null && !ruleNames.isEmpty()) {
                 StringBuilder buf = new StringBuilder();
                 buf.append('(');
                 buf.append(String.join(", ", ruleNames.stream().sorted().collect(Collectors.toList())));
@@ -150,6 +166,14 @@ public abstract class Clause {
 
     public static Clause first(List<Clause> subClauses) {
         return first(subClauses.toArray(new Clause[0]));
+    }
+
+    public static Clause longest(Clause... subClauses) {
+        return new Longest(subClauses);
+    }
+
+    public static Clause longest(List<Clause> subClauses) {
+        return longest(subClauses.toArray(new Clause[0]));
     }
 
     public static Clause followedBy(Clause subClause) {

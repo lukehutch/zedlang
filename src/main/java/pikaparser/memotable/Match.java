@@ -2,8 +2,6 @@ package pikaparser.memotable;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.First;
-import pikaparser.clause.OneOrMore;
-import pikaparser.clause.Seq;
 import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
@@ -48,15 +46,11 @@ public class Match implements Comparable<Match> {
             return 0;
         }
 
-        // An earlier subclause match in a FirstMatch clause wins over a later match
-        int diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
-        if (diff0 != 0) {
-            return diff0;
-        }
-        for (int i = 0, ii = Math.min(this.subClauseMatches.length, o.subClauseMatches.length); i < ii; i++) {
-            int diff1 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
-            if (diff1 != 0) {
-                return diff1;
+        // An earlier subclause match in a First clause wins over a later match
+        if (this.memoKey.clause instanceof First) {
+            int diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
+            if (diff0 != 0) {
+                return diff0;
             }
         }
 
@@ -84,11 +78,8 @@ public class Match implements Comparable<Match> {
         // Recurse to descendants
         for (int i = 0; i < subClauseMatches.length; i++) {
             var subClauseMatch = subClauseMatches[i];
-            int labelIdx = memoKey.clause instanceof OneOrMore ? 0
-                    : memoKey.clause instanceof First ? firstMatchingSubClauseIdx + i
-                            : memoKey.clause instanceof Seq ? i : 0;
             var subClauseASTNodeLabel = memoKey.clause.subClauseASTNodeLabels == null ? null
-                    : memoKey.clause.subClauseASTNodeLabels[labelIdx];
+                    : memoKey.clause.subClauseASTNodeLabels[firstMatchingSubClauseIdx + i];
             ASTNode parentOfSubclause = parent;
             if (subClauseASTNodeLabel != null) {
                 // Create an AST node for any labeled sub-clauses

@@ -48,7 +48,7 @@ public class Parser {
                             + match.len + " out of " + input.length() + " characters were matched)");
                 }
                 if (Parser.DEBUG) {
-                    System.out.println("Seed lex match: " + match + "\n");
+                    System.out.println("Seed lex match: " + match.toStringWithRuleName() + "\n");
                 }
             } else {
                 throw new IllegalArgumentException("Lex rule did not match input");
@@ -70,7 +70,8 @@ public class Parser {
                                     updatedEntries);
                             if (match != null) {
                                 if (Parser.DEBUG) {
-                                    System.out.println("Initial terminal match: " + match + "\n");
+                                    System.out.println(
+                                            "Initial terminal match: " + match.toStringWithRuleName() + "\n");
                                 }
                             }
                             if (clause instanceof Start) {
@@ -88,6 +89,9 @@ public class Parser {
 
             // For each MemoKey in activeSet, try finding a match, and add matches to newMatches
             (PARALLELIZE ? activeSet.parallelStream() : activeSet.stream()).forEach(memoKey -> {
+                if (memoKey.toStringWithRuleName().equals("(P0 = (<P0-P3> OP:('+' / '-') <P1-P3>)) : 0")) {
+                    System.out.println("here");
+                }
                 memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input, updatedEntries);
             });
 
@@ -97,9 +101,6 @@ public class Parser {
             // For each MemoEntry in newMatches, find best new match, and if the match 
             // improves, add the MemoEntry to activeSet for the next round
             (PARALLELIZE ? updatedEntries.parallelStream() : updatedEntries.stream()).forEach(memoEntry -> {
-                if (memoEntry.toString().equals("(P0 = P0:(((operand0:(<P1> | <P0>) (ADD:'+' | SUB:'-') operand1:<P1>) | <P1>))) : 6+8")) {
-                    System.out.println("here");
-                }
                 memoEntry.updateBestMatch(input, activeSet);
             });
 

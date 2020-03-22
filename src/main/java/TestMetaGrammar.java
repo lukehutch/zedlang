@@ -15,7 +15,7 @@ public class TestMetaGrammar {
 
         Parser metaParser = new Parser(MetaGrammar.grammar, grammarStr);
 
-        ParserInfo.printParseResult(metaParser, "Grammar");
+        ParserInfo.printParseResult(metaParser, "Grammar", false);
 
         Grammar grammar = MetaGrammar.parseGrammar(metaParser);
 

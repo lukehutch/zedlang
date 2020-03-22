@@ -53,7 +53,7 @@ public class MemoEntry {
             memoTable.numMatchObjectsMemoized.incrementAndGet();
 
             if (Parser.DEBUG) {
-                System.out.println("Found better match: " + newMatch + "\n");
+                System.out.println("Found better match: " + newMatch.toStringWithRuleName() + "\n");
             }
         }
     }
@@ -72,13 +72,17 @@ public class MemoEntry {
             // Clear newMatches for the next iteration
             newMatches.clear();
 
+            if (bestNewMatch.memoKey.toStringWithRuleName().equals("(P2 = (P2:(NEGATE:'-' operand:<P2>) | <P3>)) : 0") && bestNewMatch.len == 5) {
+                System.out.println("here");
+            }
+            
             // Replace bestMatch with newMatch
             bestMatch = bestNewMatch;
 
             StringBuilder debug = null;
             if (Parser.DEBUG) {
                 debug = new StringBuilder();
-                debug.append("Setting new best match: " + bestMatch + "\n");
+                debug.append("Setting new best match: " + bestMatch.toStringWithRuleName() + "\n");
             }
 
             // Since there was a new best match at this memo entry, any parent clauses that have this clause

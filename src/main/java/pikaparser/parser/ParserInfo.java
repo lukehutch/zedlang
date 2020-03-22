@@ -115,7 +115,7 @@ public class ParserInfo {
         //        }
     }
 
-    public static void printParseResult(Parser parser, String topLevelRuleName) {
+    public static void printParseResult(Parser parser, String topLevelRuleName, boolean showAllMatches) {
         Rule topLevelRule = parser.grammar.ruleNameToRule.get(topLevelRuleName);
         if (topLevelRule == null) {
             throw new IllegalArgumentException("No clause named \"" + topLevelRuleName + "\"");
@@ -165,9 +165,12 @@ public class ParserInfo {
                 for (int i = 0; i < matches.size(); i++) {
                     var match = matches.get(i);
                     // Indent matches that overlap with previous longest match
-                    var indent = match.memoKey.startPos < prevEndPos ? "    " : "";
-                    System.out.println("\n" + indent + "#");
-                    match.printTree(parser.input, indent, i == matches.size() - 1);
+                    var overlapsPrevMatch = match.memoKey.startPos < prevEndPos;
+                    if (!overlapsPrevMatch || showAllMatches) {
+                        var indent = overlapsPrevMatch ? "    " : "";
+                        System.out.println("\n" + indent + "#");
+                        match.printTree(parser.input, indent, i == matches.size() - 1);
+                    }
                     int newEndPos = match.memoKey.startPos + match.len;
                     if (newEndPos > prevEndPos) {
                         prevEndPos = newEndPos;
@@ -183,6 +186,7 @@ public class ParserInfo {
                 var topLevelMatch = topLevelMatches.get(i);
                 var ast = topLevelMatch.toAST(topLevelASTNodeName, parser.input);
                 if (ast != null) {
+                    System.out.println();
                     ast.printTree(parser.input);
                 }
             }

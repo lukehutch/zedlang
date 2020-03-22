@@ -25,6 +25,7 @@ public class MetaGrammar {
     private static final String PARENS = "Parens";
     private static final String SEQ = "Seq";
     private static final String FIRST = "First";
+    private static final String LONGEST = "Longest";
     private static final String FOLLOWED_BY = "FollowedBy";
     private static final String NOT_FOLLOWED_BY = "NotFollowedBy";
     private static final String ONE_OR_MORE = "OneOrMore";
@@ -48,6 +49,7 @@ public class MetaGrammar {
     private static final String LABEL_AST = "LabelAST";
     private static final String SEQ_AST = "SeqAST";
     private static final String FIRST_AST = "FirstAST";
+    private static final String LONGEST_AST = "LongestAST";
     private static final String FOLLOWED_BY_AST = "FollowedByAST";
     private static final String NOT_FOLLOWED_BY_AST = "NotFollowedByAST";
     private static final String ONE_OR_MORE_AST = "OneOrMoreAST";
@@ -85,6 +87,7 @@ public class MetaGrammar {
                                     // came before FIRST;
                                     r(SEQ), //
                                     r(FIRST), //
+                                    r(LONGEST), //
 
                                     // Parens are required for OneOrMore, ZeroOrMore and Optional, otherwise
                                     // expressions like (Clause1 Clause2+) would be parsed as
@@ -129,7 +132,10 @@ public class MetaGrammar {
                             r(NOTHING)))),
 
             rule(FIRST, //
-                    ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('|'), r(WSC), r(CLAUSE), r(WSC)))))),
+                    ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('/'), r(WSC), r(CLAUSE), r(WSC)))))),
+
+            rule(LONGEST, //
+                    ast(LONGEST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('|'), r(WSC), r(CLAUSE), r(WSC)))))),
 
             rule(FOLLOWED_BY, //
                     ast(FOLLOWED_BY_AST, seq(c('&'), r(CLAUSE)))),
@@ -327,6 +333,9 @@ public class MetaGrammar {
             break;
         case FIRST_AST:
             clause = first(parseClauses(astNode.children, input));
+            break;
+        case LONGEST_AST:
+            clause = longest(parseClauses(astNode.children, input));
             break;
         case ONE_OR_MORE_AST:
             clause = oneOrMore(expectOne(parseClauses(astNode.children, input)));
