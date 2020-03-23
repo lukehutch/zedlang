@@ -131,7 +131,6 @@ public class ParserInfo {
                 getConsumedChars(topLevelMatch, consumedChars);
             }
         }
-        var topLevelASTNodeName = topLevelRule.ruleName == null ? "<root>" : topLevelRule.ruleName;
 
         // Find reachable clauses, by reversing topological order of clauses, and putting terminals last 
         var clauseOrder = new ArrayList<Clause>();
@@ -182,6 +181,7 @@ public class ParserInfo {
         System.out.println(
                 "\n====================================\n\nFinal AST for rule \"" + topLevelRuleName + "\":");
         if (!topLevelMatches.isEmpty()) {
+            var topLevelASTNodeName = topLevelRule.ruleName == null ? "<root>" : topLevelRule.astNodeLabel;
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
                 var ast = topLevelMatch.toAST(topLevelASTNodeName, parser.input);
