@@ -2,6 +2,7 @@ package pikaparser.memotable;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.First;
+import pikaparser.clause.OneOrMore;
 import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
@@ -76,10 +77,15 @@ public class Match implements Comparable<Match> {
 
     private void toAST(ASTNode parent, String input) {
         // Recurse to descendants
+        var isOneOrMore = memoKey.clause instanceof OneOrMore;
         for (int i = 0; i < subClauseMatches.length; i++) {
             var subClauseMatch = subClauseMatches[i];
+            // There's only one subclause (and therefore only one subclause label), no matter how many matches,
+            // for OneOrMore clauses. For First clauses, firstMatchingSubClauseIdx gives the index of the matching
+            // clause. For Seq, the subclause index i pairs subclause labels with subclauses.
+            var subClauseLabelIdx = isOneOrMore ? 0 : firstMatchingSubClauseIdx + i;
             var subClauseASTNodeLabel = memoKey.clause.subClauseASTNodeLabels == null ? null
-                    : memoKey.clause.subClauseASTNodeLabels[firstMatchingSubClauseIdx + i];
+                    : memoKey.clause.subClauseASTNodeLabels[subClauseLabelIdx];
             ASTNode parentOfSubclause = parent;
             if (subClauseASTNodeLabel != null) {
                 // Create an AST node for any labeled sub-clauses
