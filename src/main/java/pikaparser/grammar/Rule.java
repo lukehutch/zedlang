@@ -25,12 +25,14 @@ public class Rule {
         } else {
             this.clause = clause;
         }
-        this.clause.registerRule(this);
 
         // Move AST node labels from ASTNodeLabel subclauses to subClauseASTNodeLabels in the parent, so that
         // RuleRef instances and interned subclauses (which can be shared by multiple clauses) are labeled
         // by position within the parent.
         liftASTNodeLabels(clause);
+
+        // Register rule in clause, for toString()
+        this.clause.registerRule(this);
     }
 
     public Rule(String ruleName, Clause clause) {
@@ -47,9 +49,9 @@ public class Rule {
         for (int subClauseIdx = 0; subClauseIdx < clause.subClauses.length; subClauseIdx++) {
             Clause subClause = clause.subClauses[subClauseIdx];
             if (subClause instanceof ASTNodeLabel) {
+                // Copy any AST node labels from subclause node to subClauseASTNodeLabels array within the parent
                 var subClauseASTNodeLabel = ((ASTNodeLabel) subClause).astNodeLabel;
                 if (subClauseASTNodeLabel != null) {
-                    // Copy the label from subclause node to subClauseASTNodeLabels array within the parent
                     if (clause.subClauseASTNodeLabels == null) {
                         // Alloc array for subclause node labels, if not already done
                         clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
@@ -58,9 +60,11 @@ public class Rule {
                         // Update subclause label, if it hasn't already been labeled
                         clause.subClauseASTNodeLabels[subClauseIdx] = subClauseASTNodeLabel;
                     }
-                    // Remove the ASTNodeLabel node 
-                    clause.subClauses[subClauseIdx] = subClause.subClauses[0];
+                } else {
+                    throw new IllegalArgumentException(ASTNodeLabel.class.getSimpleName() + " is null");
                 }
+                // Remove the ASTNodeLabel node 
+                clause.subClauses[subClauseIdx] = subClause.subClauses[0];
             }
             // Recurse
             liftASTNodeLabels(subClause);

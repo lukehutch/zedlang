@@ -126,14 +126,14 @@ public class RuleGroup {
     private void resolveRuleRefs(Rule rule, Clause clause, int precedence, int precedenceIdx,
             Map<String, RuleGroup> ruleNameToRuleGroup, Set<Clause> visited) {
         if (visited.add(clause)) {
-            for (int i = 0; i < clause.subClauses.length; i++) {
-                Clause subClause = clause.subClauses[i];
+            for (int subClauseIdx = 0; subClauseIdx < clause.subClauses.length; subClauseIdx++) {
+                Clause subClause = clause.subClauses[subClauseIdx];
                 if (subClause instanceof RuleRef) {
                     // Look up rule from name in RuleRef
                     String refdRuleName = ((RuleRef) subClause).refdRuleName;
                     if (refdRuleName.equals(rule.ruleName)) {
                         // This is a rule self-reference -- replace RuleRef with a higher precedence selector clause
-                        clause.subClauses[i] = higherPrecedenceSelectors.get(precedenceIdx);
+                        clause.subClauses[subClauseIdx] = higherPrecedenceSelectors.get(precedenceIdx);
 
                     } else {
                         // Referenced rule is different from the current rule -- set current clause to
@@ -142,7 +142,20 @@ public class RuleGroup {
                         if (refdRuleGroup == null) {
                             throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
                         }
-                        clause.subClauses[i] = refdRuleGroup.getBaseClause();
+                        clause.subClauses[subClauseIdx] = refdRuleGroup.getBaseClause();
+                        
+                        // Copy across AST node label, if any
+                        var refdRuleGroupASTNodeLabel = refdRuleGroup.getASTNodeLabel();
+                        if (refdRuleGroupASTNodeLabel != null) {
+                            if (clause.subClauseASTNodeLabels == null) {
+                                // Alloc array for subclause node labels, if not already done
+                                clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
+                            }
+                            if (clause.subClauseASTNodeLabels[subClauseIdx] == null) {
+                                // Update subclause label, if it hasn't already been labeled
+                                clause.subClauseASTNodeLabels[subClauseIdx] = refdRuleGroupASTNodeLabel;
+                            }
+                        }
                     }
                     // Stop recursing at RuleRef
                 } else {

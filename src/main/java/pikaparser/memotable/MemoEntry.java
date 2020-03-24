@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
 import pikaparser.parser.Parser;
@@ -27,7 +28,7 @@ public class MemoEntry {
     /** The subclause matches from the previous iteration. */
     public List<Match> subClauseMatches = new ArrayList<>();
 
-    public Set<MemoKey> backrefs = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
+    public Set<MemoKey> backRefs = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
 
     public MemoEntry(MemoKey memoKey) {
         this.memoKey = memoKey;
@@ -40,7 +41,7 @@ public class MemoEntry {
      * This method is potentially run in a multiple threads for a single {@link MemoEntry}, in the first stage of
      * the iteration.
      */
-    public void addNewBestMatch(MemoTable memoTable, Match newMatch, Set<MemoEntry> updatedEntries) {
+    public void addNewBestMatch(Match newMatch, Set<MemoEntry> updatedEntries) {
         // If the new match is better than the current best match from the previous iteration
         if (bestMatch == null || newMatch.compareTo(bestMatch) < 0) {
             // Add the new match. There may be more than one match added in a given iteration -- a zero-width
@@ -50,7 +51,6 @@ public class MemoEntry {
 
             // Mark entry as changed
             updatedEntries.add(this);
-            memoTable.numMatchObjectsMemoized.incrementAndGet();
 
             if (Parser.DEBUG) {
                 System.out.println("Found better match: " + newMatch.toStringWithRuleNames() + "\n");
@@ -65,7 +65,7 @@ public class MemoEntry {
      * <p>
      * This method is run in a single thread per {@link MemoEntry}, in the second stage of the iteration.
      */
-    public void updateBestMatch(String input, Set<MemoKey> activeSetOut) {
+    public void updateBestMatch(String input, Set<MemoKey> activeSetOut, AtomicInteger numMatchObjectsMemoized) {
         // Get the best new updated match for this MemoEntry, if there is one
         Match bestNewMatch = newMatches.peek();
         if (bestNewMatch != null) {
@@ -74,6 +74,7 @@ public class MemoEntry {
 
             // Replace bestMatch with newMatch
             bestMatch = bestNewMatch;
+            numMatchObjectsMemoized.incrementAndGet();
 
             StringBuilder debug = null;
             if (Parser.DEBUG) {
@@ -93,7 +94,7 @@ public class MemoEntry {
             }
 
             // Any parent clause that depended upon the previous match also needs to be added to the active set
-            for (var backref : backrefs) {
+            for (var backref : backRefs) {
                 activeSetOut.add(backref);
 
                 if (Parser.DEBUG) {
@@ -106,7 +107,7 @@ public class MemoEntry {
             }
 
             // Clear backrefs for the next iteration
-            backrefs.clear();
+            backRefs.clear();
         }
     }
 

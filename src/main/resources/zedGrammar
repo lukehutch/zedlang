@@ -1,15 +1,15 @@
 
 # Lex rule:
 
-Lex = WS | Ident | EnumConst | Num | LParen | RParen | Eq | Semi | Dot;
+Lex = WS / Ident / EnumConst / Num / LParen / RParen / Eq / Semi / Dot;
 
-WS = (' ' | '\t' | '\n' | '\r' | '\f')+;
+WS = (' ' / '\t' / '\n' / '\r' / '\f')+;
 
 Ident = [a-zA-Z_]([a-zA-Z0-9_])*;
 
 EnumConst = '#' Ident;
 
-Num = ([0-9])+ | ((([0-9])+)? '.' ([0-9])+ ([fFdD])?);
+Num = ([0-9])+ / ((([0-9])+)? '.' ([0-9])+ ([fFdD])?);
 
 LParen = '('; 
 RParen = ')'; 
@@ -27,7 +27,7 @@ Package = Ident (Dot Package)?;
 
 Statement = Ident WS Eq WS Expr WS Semi;
 
-Expr = Term | Term '+' Term | Term '*' Term; # TODO
+Expr = Term / Term '+' Term / Term '*' Term; # TODO
 
-Term = Ident | EnumConst | Num;
+Term = Ident / EnumConst / Num;
 

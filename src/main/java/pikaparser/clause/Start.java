@@ -31,7 +31,7 @@ public class Start extends Terminal {
         // Terminals are always matched top-down
         // Match zero characters at beginning of input
         if (memoKey.startPos == 0) {
-            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1, updatedEntries);
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0, updatedEntries);
         }
         // Don't call MemoTable.addMatch for non-matching terminals, to limit size of memo table
         return null;

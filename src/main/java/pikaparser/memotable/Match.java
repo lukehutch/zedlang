@@ -25,13 +25,12 @@ public class Match implements Comparable<Match> {
     /** There are no subclause matches for terminals. */
     public static final Match[] NO_SUBCLAUSE_MATCHES = new Match[0];
 
-    public Match(MemoTable memoTable, MemoKey memoKey, int firstMatchingSubClauseIdx, int len,
+    public Match(MemoKey memoKey, int firstMatchingSubClauseIdx, int len,
             Match[] subClauseMatches) {
         this.memoKey = memoKey;
         this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
         this.len = len;
         this.subClauseMatches = subClauseMatches;
-        memoTable.numMatchObjectsCreated.incrementAndGet();
     }
 
     /**

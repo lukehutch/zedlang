@@ -13,34 +13,25 @@ import pikaparser.parser.Parser;
 public class MetaGrammar {
     // Rule names:
 
-    private static final String GRAMMAR = "Grammar";
-    private static final String LEX = "Lex";
-    private static final String WSC = "WhiteSpaceOrComment";
-    private static final String COMMENT = "Comment";
-    private static final String RULE = "Rule";
-    private static final String CLAUSE = "Clause";
-    private static final String IDENT = "Ident";
-    private static final String LABEL = "Label";
-    private static final String NAME_CHAR = "NameChar";
-    private static final String PARENS = "Parens";
-    private static final String SEQ = "Seq";
-    private static final String FIRST = "First";
-    private static final String LONGEST = "Longest";
-    private static final String FOLLOWED_BY = "FollowedBy";
-    private static final String NOT_FOLLOWED_BY = "NotFollowedBy";
-    private static final String ONE_OR_MORE = "OneOrMore";
-    private static final String ZERO_OR_MORE = "ZeroOrMore";
-    private static final String OPTIONAL = "Optional";
-    private static final String CHAR_SET = "CharSet";
+    private static final String GRAMMAR = "GRAMMAR";
+    private static final String LEX = "LEX";
+    private static final String WSC = "WS_OR_COMMENT";
+    private static final String COMMENT = "COMMENT";
+    private static final String RULE = "RULE";
+    private static final String CLAUSE = "CLAUSE";
+    private static final String IDENT = "IDENT";
+    private static final String LABEL = "LABEL";
+    private static final String NAME_CHAR = "NAME_CHAR";
+    private static final String CHAR_SET = "CHARSET";
     private static final String HEX = "Hex";
-    private static final String CHAR_RANGE = "CharRange";
-    private static final String CHAR_RANGE_CHAR = "CharRangeChar";
-    private static final String QUOTED_STRING = "QuotedString";
-    private static final String ESCAPED_CTRL_CHAR = "EscapedCtrlChar";
-    private static final String SINGLE_QUOTED_CHAR = "SingleQuotedChar";
-    private static final String STR_QUOTED_CHAR = "StrQuotedChar";
-    private static final String NOTHING = "Nothing";
-    private static final String START = "Start";
+    private static final String CHAR_RANGE = "CHAR_RANGE";
+    private static final String CHAR_RANGE_CHAR = "CHAR_RANGE_CHAR";
+    private static final String QUOTED_STRING = "QUOTED_STR";
+    private static final String ESCAPED_CTRL_CHAR = "ESCAPED_CTRL_CHAR";
+    private static final String SINGLE_QUOTED_CHAR = "SINGLE_QUOTED_CHAR";
+    private static final String STR_QUOTED_CHAR = "STR_QUOTED_CHAR";
+    private static final String NOTHING = "NOTHING";
+    private static final String START = "START";
 
     // AST node names:
 
@@ -61,89 +52,57 @@ public class MetaGrammar {
     private static final String START_AST = "StartAST";
     private static final String NOTHING_AST = "NothingAST";
 
-    // Toplevel rule for lex preprocessing (use null to disable lexing):
-
-    public static final String LEX_RULE_NAME = LEX;
-
     // Metagrammar:
 
-    public static Grammar grammar = new Grammar(LEX_RULE_NAME, Arrays.asList(//
+    public static Grammar grammar = new Grammar(LEX, Arrays.asList(//
             rule(GRAMMAR, //
                     seq(start(), r(WSC), oneOrMore(r(RULE)))), //
 
             rule(RULE, //
                     ast(RULE_AST, seq(r(IDENT), r(WSC), c('='), r(WSC), r(CLAUSE), r(WSC), c(';'), r(WSC)))), //
 
-            rule(CLAUSE, //
+            rule(LABEL, seq(ast(LABEL_AST, r(IDENT)), r(WSC), c(':'), r(WSC))), //
+
+            // Define precedence order for clause sequences
+
+            rule(CLAUSE, 7, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
+
+            rule(CLAUSE, 6, //
                     seq( // 
                             optional(r(LABEL)), //
                             first( //
-                                    // Seq and First must come first, because they match sequences of clauses.
-                                    // If they are not first, then the CLAUSE rule will greedily match a single
-                                    // earlier subclause (e.g. ONE_OR_MORE) and will never visit SEQ or FIRST.
-                                    // Also, counterintuitively, SEQ should come before FIRST so that (A A | B B)
-                                    // parses as ((A A) | (B B)), and not (A (A | B) B). SEQ is shorter than FIRST,
-                                    // so SEQ would be matched greedily, and FIRST would never match, if SEQ
-                                    // came before FIRST;
-                                    r(SEQ), //
-                                    r(FIRST), //
-                                    r(LONGEST), //
-
-                                    // Parens are required for OneOrMore, ZeroOrMore and Optional, otherwise
-                                    // expressions like (Clause1 Clause2+) would be parsed as
-                                    // ((Clause1 Clause2)+) rather than (Clause1 (Clause2)+).
-                                    // These have to come before PARENS, since they are right-associative.
-                                    // Otherwise, a sequence like "(X)+" will be matched as "(X)" and the "+"
-                                    // will never be reached.
-                                    r(ONE_OR_MORE), //
-                                    r(ZERO_OR_MORE), //
-                                    r(OPTIONAL), //
-
-                                    r(PARENS), //
-
-                                    r(FOLLOWED_BY), //
-                                    r(NOT_FOLLOWED_BY), //
-
-                                    // Finally match individual tokens (these are the shortest clause types)
                                     r(IDENT), //
                                     r(QUOTED_STRING), //
                                     r(CHAR_SET), //
                                     r(NOTHING), //
                                     r(START)))), //
 
-            rule(LABEL, seq(ast(LABEL_AST, r(IDENT)), r(WSC), c(':'), r(WSC))), //
+            rule(CLAUSE, 5, seq(optional(r(LABEL)), r(CLAUSE), r(WSC))), //
 
-            rule(PARENS, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
+            rule(CLAUSE, 4, //
+                    first( //
+                            seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c("+")),
+                            seq(ast(ZERO_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')),
+                            seq(ast(OPTIONAL_AST, r(CLAUSE)), r(WSC), c('?'))
 
-            rule(SEQ, //
+                    )), //
+
+            rule(CLAUSE, 3, //
+                    first( //
+                            seq(c('&'), ast(FOLLOWED_BY_AST, r(CLAUSE))), //
+                            seq(c('!'), ast(NOT_FOLLOWED_BY_AST, r(CLAUSE))))), //
+
+            rule(CLAUSE, 2, //
                     ast(SEQ_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(r(CLAUSE), r(WSC)))))),
 
-            rule(ONE_OR_MORE, //
-                    seq(c('('), r(WSC), ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), str(")+"))),
-
-            rule(ZERO_OR_MORE, //
-                    ast(ZERO_OR_MORE_AST, first( //
-                            seq(c('('), r(WSC), ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), str(")*")), //
-                            r(NOTHING)))),
-
-            rule(OPTIONAL, //
-                    ast(OPTIONAL_AST, first( //
-                            seq(c('('), r(WSC), r(CLAUSE), r(WSC), str(")?")), //
-                            r(NOTHING)))),
-
-            rule(FIRST, //
+            rule(CLAUSE, 1, //
                     ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('/'), r(WSC), r(CLAUSE), r(WSC)))))),
 
-            rule(LONGEST, //
+            rule(CLAUSE, 0, //
                     ast(LONGEST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('|'), r(WSC), r(CLAUSE), r(WSC)))))),
 
-            rule(FOLLOWED_BY, //
-                    ast(FOLLOWED_BY_AST, seq(c('&'), r(CLAUSE)))),
+            // Lex rule for preprocessing
 
-            rule(NOT_FOLLOWED_BY, //
-                    ast(NOT_FOLLOWED_BY_AST, seq(c('!'), r(CLAUSE)))),
-
-            // Lex rule for preprocessing:
             rule(LEX, //
                     oneOrMore( //
                             first( //
@@ -157,14 +116,14 @@ public class MetaGrammar {
                                     c('+'), //
                                     c('?'), //
                                     c('|'), //
+                                    c('/'), //
                                     c('^'), //
                                     r(IDENT), //
                                     r(QUOTED_STRING), //
                                     r(CHAR_SET), //
 
                                     // WS/comment has to come last, since it can match Nothing
-                                    r(WSC)) //
-                    )), //
+                                    r(WSC)))), //
 
             rule(WSC, //
                     zeroOrMore(first(c(" \n\r\t"), r(COMMENT)))),

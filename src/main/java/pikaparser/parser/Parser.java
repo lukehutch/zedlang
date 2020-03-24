@@ -34,6 +34,15 @@ public class Parser {
         // Memo table entries for which new matches were found in the current iteration
         var updatedEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
 
+        // Always match Start at the first position, if any clause depends upon it
+        for (var clause : grammar.allClauses) {
+            if (clause instanceof Start) {
+                activeSet.add(new MemoKey(clause, 0));
+                // Because clauses are interned, can stop after one instance of Start clause is found
+                break;
+            }
+        }
+
         // If a lex rule was specified, seed the bottom-up parsing by running the lex rule top-down
         if (grammar.lexClause != null) {
             // Run lex preprocessing step, top-down
@@ -98,7 +107,7 @@ public class Parser {
             // For each MemoEntry in newMatches, find best new match, and if the match 
             // improves, add the MemoEntry to activeSet for the next round
             (PARALLELIZE ? updatedEntries.parallelStream() : updatedEntries.stream()).forEach(memoEntry -> {
-                memoEntry.updateBestMatch(input, activeSet);
+                memoEntry.updateBestMatch(input, activeSet, memoTable.numMatchObjectsMemoized);
             });
 
             // Clear memoEntriesWithNewMatches for the next round

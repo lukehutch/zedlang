@@ -15,14 +15,16 @@ public class TestMetaGrammar {
 
         Parser metaParser = new Parser(MetaGrammar.grammar, grammarStr);
 
-        ParserInfo.printParseResult(metaParser, "Grammar", false);
+        ParserInfo.printParseResult(metaParser, "GRAMMAR", false);
 
-        Grammar grammar = MetaGrammar.parseGrammar(metaParser);
+        Grammar zedGrammar = MetaGrammar.parseGrammar(metaParser);
 
         System.out.println("\nParsed grammar:");
-        for (var clause : grammar.allClauses) {
+        for (var clause : zedGrammar.allClauses) {
             System.out.println("    " + clause.toStringWithRuleNames());
         }
+        
+        // Parser zedParser = new Parser(zedGrammar, zedSrc);
     }
 
 }

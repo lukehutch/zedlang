@@ -25,8 +25,7 @@ public class Nothing extends Terminal {
             Set<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         // Don't call MemoTable.addMatch for Nothing, to limit size of memo table
-        return new Match(memoTable, memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
-                Match.NO_SUBCLAUSE_MATCHES);
+        return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
     }
 
     @Override
