@@ -53,7 +53,7 @@ public class MemoEntry {
             memoTable.numMatchObjectsMemoized.incrementAndGet();
 
             if (Parser.DEBUG) {
-                System.out.println("Found better match: " + newMatch.toStringWithRuleName() + "\n");
+                System.out.println("Found better match: " + newMatch.toStringWithRuleNames() + "\n");
             }
         }
     }
@@ -72,17 +72,13 @@ public class MemoEntry {
             // Clear newMatches for the next iteration
             newMatches.clear();
 
-            if (bestNewMatch.memoKey.toStringWithRuleName().equals("(P2 = (P2:(NEGATE:'-' operand:<P2>) | <P3>)) : 0") && bestNewMatch.len == 5) {
-                System.out.println("here");
-            }
-            
             // Replace bestMatch with newMatch
             bestMatch = bestNewMatch;
 
             StringBuilder debug = null;
             if (Parser.DEBUG) {
                 debug = new StringBuilder();
-                debug.append("Setting new best match: " + bestMatch.toStringWithRuleName() + "\n");
+                debug.append("Setting new best match: " + bestMatch.toStringWithRuleNames() + "\n");
             }
 
             // Since there was a new best match at this memo entry, any parent clauses that have this clause
@@ -92,7 +88,7 @@ public class MemoEntry {
                 activeSetOut.add(parentMemoKey);
 
                 if (Parser.DEBUG) {
-                    debug.append("    Seed parent clause: " + parentMemoKey.toStringWithRuleName() + "\n");
+                    debug.append("    Seed parent clause: " + parentMemoKey.toStringWithRuleNames() + "\n");
                 }
             }
 
@@ -101,7 +97,7 @@ public class MemoEntry {
                 activeSetOut.add(backref);
 
                 if (Parser.DEBUG) {
-                    debug.append("    Backref: " + backref.toStringWithRuleName() + "\n");
+                    debug.append("    Backref: " + backref.toStringWithRuleNames() + "\n");
                 }
             }
 
@@ -114,8 +110,8 @@ public class MemoEntry {
         }
     }
 
-    public String toStringWithRuleName() {
-        return memoKey.toStringWithRuleName();
+    public String toStringWithRuleNames() {
+        return memoKey.toStringWithRuleNames();
     }
 
     @Override

@@ -39,7 +39,7 @@ public class Test {
             //                    rule("Name", oneOrMore(new CharSet('a', 'z'))) //
             //            )), grammarStr);
 
-            ParserInfo.printParseResult(parser, "P0", false);
+            ParserInfo.printParseResult(parser, "Expr", false);
         }
     }
 

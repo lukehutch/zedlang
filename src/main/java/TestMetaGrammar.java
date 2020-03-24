@@ -21,7 +21,7 @@ public class TestMetaGrammar {
 
         System.out.println("\nParsed grammar:");
         for (var clause : grammar.allClauses) {
-            System.out.println("    " + clause.toStringWithRuleName());
+            System.out.println("    " + clause.toStringWithRuleNames());
         }
     }
 

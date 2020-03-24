@@ -13,9 +13,9 @@ public class Seq extends Clause {
 
     Seq(Clause... subClauses) {
         super(subClauses);
-        //        if (subClauses.length < 2) {
-        //            throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
-        //        }
+        if (subClauses.length < 2) {
+            throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
+        }
     }
 
     public Seq(List<Clause> subClauses) {

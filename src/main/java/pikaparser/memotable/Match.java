@@ -80,9 +80,10 @@ public class Match implements Comparable<Match> {
         var isOneOrMore = memoKey.clause instanceof OneOrMore;
         for (int i = 0; i < subClauseMatches.length; i++) {
             var subClauseMatch = subClauseMatches[i];
-            // There's only one subclause (and therefore only one subclause label), no matter how many matches,
-            // for OneOrMore clauses. For First clauses, firstMatchingSubClauseIdx gives the index of the matching
-            // clause. For Seq, the subclause index i pairs subclause labels with subclauses.
+            // For OneOrMore clauses, there's only one subclause (and therefore only one subclause label),
+            // no matter how many matches. For First and Longest clauses, firstMatchingSubClauseIdx gives the
+            // index of the matching clause (for other clause types, firstMatchingSubClauseIdx is zero).
+            // For Seq, the subclause index i pairs subclause labels with subclauses.
             var subClauseLabelIdx = isOneOrMore ? 0 : firstMatchingSubClauseIdx + i;
             var subClauseASTNodeLabel = memoKey.clause.subClauseASTNodeLabels == null ? null
                     : memoKey.clause.subClauseASTNodeLabels[subClauseLabelIdx];
@@ -113,7 +114,7 @@ public class Match implements Comparable<Match> {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + memoKey.toStringWithRuleName() + "+" + len + " \"" + inp + "\"");
+        System.out.println(indentStr + "+-- " + memoKey.toStringWithRuleNames() + "+" + len + " \"" + inp + "\"");
         if (subClauseMatches != null) {
             for (int i = 0; i < subClauseMatches.length; i++) {
                 var subClauseMatch = subClauseMatches[i];
@@ -127,15 +128,15 @@ public class Match implements Comparable<Match> {
         printTree(input, "", true);
     }
 
-    public String toStringWithRuleName() {
+    public String toStringWithRuleNames() {
         StringBuilder buf = new StringBuilder();
-        buf.append(memoKey.toStringWithRuleName() + "+" + len + " => [ ");
+        buf.append(memoKey.toStringWithRuleNames() + "+" + len + " => [ ");
         for (int i = 0; i < subClauseMatches.length; i++) {
             var s = subClauseMatches[i];
             if (i > 0) {
                 buf.append(" ; ");
             }
-            buf.append(s.toStringWithRuleName());
+            buf.append(s.toStringWithRuleNames());
         }
         buf.append(" ]");
         return buf.toString();

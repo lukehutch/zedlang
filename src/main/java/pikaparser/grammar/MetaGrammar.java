@@ -296,7 +296,14 @@ public class MetaGrammar {
         return buf.toString();
     }
 
-    private static List<Clause> parseClauses(List<ASTNode> astNodes, String input) {
+    private static Clause expectOne(List<Clause> clauses) {
+        if (clauses.size() != 1) {
+            throw new IllegalArgumentException("Expected one clause, got " + clauses.size());
+        }
+        return clauses.get(0);
+    }
+
+    private static List<Clause> parseASTNodes(List<ASTNode> astNodes, String input) {
         List<Clause> clauses = new ArrayList<>(astNodes.size());
         String nextNodeLabel = null;
         for (int i = 0; i < astNodes.size(); i++) {
@@ -305,11 +312,11 @@ public class MetaGrammar {
                 // A label AST node precedes the labeled clause
                 nextNodeLabel = astNode.getText(input);
             } else {
-                // Convert from ASTNode to Clause
-                var clause = parseClause(astNode, input);
+                // Create a Clause from the ASTNode
+                var clause = parseASTNode(astNode, input);
                 if (nextNodeLabel != null) {
                     // Label the Clause with the preceding label, if present
-                    clause.astNodeLabel = nextNodeLabel;
+                    clause = ast(nextNodeLabel, clause);
                     nextNodeLabel = null;
                 }
                 clauses.add(clause);
@@ -318,39 +325,32 @@ public class MetaGrammar {
         return clauses;
     }
 
-    private static Clause expectOne(List<Clause> clauses) {
-        if (clauses.size() != 1) {
-            throw new IllegalArgumentException("Expected one clause, got " + clauses.size());
-        }
-        return clauses.get(0);
-    }
-
-    private static Clause parseClause(ASTNode astNode, String input) {
+    private static Clause parseASTNode(ASTNode astNode, String input) {
         Clause clause;
         switch (astNode.astLabel) {
         case SEQ_AST:
-            clause = seq(parseClauses(astNode.children, input));
+            clause = seq(parseASTNodes(astNode.children, input));
             break;
         case FIRST_AST:
-            clause = first(parseClauses(astNode.children, input));
+            clause = first(parseASTNodes(astNode.children, input));
             break;
         case LONGEST_AST:
-            clause = longest(parseClauses(astNode.children, input));
+            clause = longest(parseASTNodes(astNode.children, input));
             break;
         case ONE_OR_MORE_AST:
-            clause = oneOrMore(expectOne(parseClauses(astNode.children, input)));
+            clause = oneOrMore(expectOne(parseASTNodes(astNode.children, input)));
             break;
         case ZERO_OR_MORE_AST:
-            clause = zeroOrMore(expectOne(parseClauses(astNode.children, input)));
+            clause = zeroOrMore(expectOne(parseASTNodes(astNode.children, input)));
             break;
         case OPTIONAL_AST:
-            clause = optional(expectOne(parseClauses(astNode.children, input)));
+            clause = optional(expectOne(parseASTNodes(astNode.children, input)));
             break;
         case FOLLOWED_BY_AST:
-            clause = followedBy(expectOne(parseClauses(astNode.children, input)));
+            clause = followedBy(expectOne(parseASTNodes(astNode.children, input)));
             break;
         case NOT_FOLLOWED_BY_AST:
-            clause = notFollowedBy(expectOne(parseClauses(astNode.children, input)));
+            clause = notFollowedBy(expectOne(parseASTNodes(astNode.children, input)));
             break;
         case IDENT_AST:
             clause = r(astNode.getText(input)); // Rule name ref
@@ -377,7 +377,7 @@ public class MetaGrammar {
             break;
         default:
             // Keep recursing for parens (the only type of AST node that doesn't have a label)
-            clause = expectOne(parseClauses(astNode.children, input));
+            clause = expectOne(parseASTNodes(astNode.children, input));
             break;
         }
         // Insert CreateASTNode node into grammar if there is an AST node label 
@@ -397,7 +397,7 @@ public class MetaGrammar {
         }
         String name = ruleNode.getFirstChild().getText(input);
         ASTNode astNode = ruleNode.getSecondChild();
-        Clause clause = parseClause(astNode, input);
+        Clause clause = parseASTNode(astNode, input);
         return rule(name, clause);
     }
 

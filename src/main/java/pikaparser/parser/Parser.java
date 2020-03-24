@@ -22,7 +22,7 @@ public class Parser {
 
     private static final boolean PARALLELIZE = true;
 
-    public static final boolean DEBUG = true;
+    public static final boolean DEBUG = false;
 
     public Parser(Grammar grammar, String input) {
         this.grammar = grammar;
@@ -35,10 +35,10 @@ public class Parser {
         var updatedEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
 
         // If a lex rule was specified, seed the bottom-up parsing by running the lex rule top-down
-        if (grammar.lexRule != null) {
+        if (grammar.lexClause != null) {
             // Run lex preprocessing step, top-down
-            var match = grammar.lexRule.clause.match(MatchDirection.TOP_DOWN, memoTable,
-                    new MemoKey(grammar.lexRule.clause, /* startPos = */ 0), input, updatedEntries);
+            var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable,
+                    new MemoKey(grammar.lexClause, /* startPos = */ 0), input, updatedEntries);
             if (match != null) {
                 if (match.len == 0) {
                     // Without testing for zero-length matches, could get stuck in an infinite loop
@@ -48,7 +48,7 @@ public class Parser {
                             + match.len + " out of " + input.length() + " characters were matched)");
                 }
                 if (Parser.DEBUG) {
-                    System.out.println("Seed lex match: " + match.toStringWithRuleName() + "\n");
+                    System.out.println("Seed lex match: " + match.toStringWithRuleNames() + "\n");
                 }
             } else {
                 throw new IllegalArgumentException("Lex rule did not match input");
@@ -71,7 +71,7 @@ public class Parser {
                             if (match != null) {
                                 if (Parser.DEBUG) {
                                     System.out.println(
-                                            "Initial terminal match: " + match.toStringWithRuleName() + "\n");
+                                            "Initial terminal match: " + match.toStringWithRuleNames() + "\n");
                                 }
                             }
                             if (clause instanceof Start) {
@@ -89,9 +89,6 @@ public class Parser {
 
             // For each MemoKey in activeSet, try finding a match, and add matches to newMatches
             (PARALLELIZE ? activeSet.parallelStream() : activeSet.stream()).forEach(memoKey -> {
-                if (memoKey.toStringWithRuleName().equals("(P0 = (<P0-P3> OP:('+' / '-') <P1-P3>)) : 0")) {
-                    System.out.println("here");
-                }
                 memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input, updatedEntries);
             });
 

@@ -7,7 +7,7 @@ import java.util.List;
 import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
-import pikaparser.grammar.Rule;
+import pikaparser.grammar.RuleGroup;
 import pikaparser.memotable.Match;
 
 public class ParserInfo {
@@ -40,7 +40,7 @@ public class ParserInfo {
             if (clause.canMatchZeroChars) {
                 buf[i].append("[alwaysMatches] ");
             }
-            buf[i].append(clause.toStringWithRuleName());
+            buf[i].append(clause.toStringWithRuleNames());
             marginWidth = Math.max(marginWidth, buf[i].length() + 2);
         }
         int tableWidth = marginWidth + input.length() + 1;
@@ -116,15 +116,16 @@ public class ParserInfo {
     }
 
     public static void printParseResult(Parser parser, String topLevelRuleName, boolean showAllMatches) {
-        Rule topLevelRule = parser.grammar.ruleNameToRule.get(topLevelRuleName);
-        if (topLevelRule == null) {
+        RuleGroup topLevelRuleGroup = parser.grammar.ruleNameToRuleGroup.get(topLevelRuleName);
+        if (topLevelRuleGroup == null) {
             throw new IllegalArgumentException("No clause named \"" + topLevelRuleName + "\"");
         }
 
         // Print parse tree, and find which characters were consumed and which weren't
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
 
-        var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRule.clause);
+        var topLevelRuleClause = topLevelRuleGroup.getBaseClause();
+        var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRuleClause);
         if (!topLevelMatches.isEmpty()) {
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
@@ -159,7 +160,7 @@ public class ParserInfo {
             var matches = parser.memoTable.getAllMatches(clause);
             if (!matches.isEmpty()) {
                 System.out.println("\n====================================\n\nMatches for "
-                        + clause.toStringWithRuleName() + " :");
+                        + clause.toStringWithRuleNames() + " :");
                 var prevEndPos = -1;
                 for (int i = 0; i < matches.size(); i++) {
                     var match = matches.get(i);
@@ -181,7 +182,10 @@ public class ParserInfo {
         System.out.println(
                 "\n====================================\n\nFinal AST for rule \"" + topLevelRuleName + "\":");
         if (!topLevelMatches.isEmpty()) {
-            var topLevelASTNodeName = topLevelRule.ruleName == null ? "<root>" : topLevelRule.astNodeLabel;
+            var topLevelASTNodeName = topLevelRuleGroup.getASTNodeLabel();
+            if (topLevelASTNodeName == null) {
+                topLevelASTNodeName = "<root>";
+            }
             for (int i = 0; i < topLevelMatches.size(); i++) {
                 var topLevelMatch = topLevelMatches.get(i);
                 var ast = topLevelMatch.toAST(topLevelASTNodeName, parser.input);

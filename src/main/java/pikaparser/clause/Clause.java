@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import pikaparser.grammar.Rule;
 import pikaparser.memotable.Match;
@@ -15,11 +14,11 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public abstract class Clause {
-    public Set<String> ruleNames;
     public final Clause[] subClauses;
-
-    public String astNodeLabel;
     public String[] subClauseASTNodeLabels;
+
+    /** Rules this clause is a toplevel clause of */
+    public List<Rule> rules;
 
     /** The parent clauses to seed when this clause's match memo at a given position changes. */
     public final Set<Clause> seedParentClauses = new HashSet<>();
@@ -27,8 +26,8 @@ public abstract class Clause {
     /** If true, the clause can match zero characters. */
     public boolean canMatchZeroChars;
 
-    protected String toStringCached;
-    protected String toStringWithRuleNameCached;
+    public String toStringCached;
+    public String toStringWithRuleNameCached;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -36,18 +35,11 @@ public abstract class Clause {
         this.subClauses = subClauses;
     }
 
-    public void addRuleName(String ruleName) {
-        if (ruleNames == null) {
-            ruleNames = new HashSet<>();
+    public void registerRule(Rule rule) {
+        if (rules == null) {
+            rules = new ArrayList<>();
         }
-        ruleNames.add(ruleName);
-    }
-
-    public void addRuleNames(Set<String> ruleNamesSet) {
-        if (ruleNamesSet == null) {
-            ruleNamesSet = new HashSet<>();
-        }
-        ruleNamesSet.addAll(ruleNamesSet);
+        rules.add(rule);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -88,28 +80,36 @@ public abstract class Clause {
         BOTTOM_UP, TOP_DOWN;
     }
 
-    /**
-     * Match a clause bottom-up at a given start position.
-     * 
-     * @param matchDirection
-     *            TODO
-     */
+    /** Match a clause bottom-up at a given start position. */
     public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
             Set<MemoEntry> updatedEntries);
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public String toStringWithRuleName() {
+    public String toStringWithRuleNames() {
         if (toStringWithRuleNameCached == null) {
-            if (ruleNames != null && !ruleNames.isEmpty()) {
+            if (rules != null) {
                 StringBuilder buf = new StringBuilder();
                 buf.append('(');
-                buf.append(String.join(", ", ruleNames.stream().sorted().collect(Collectors.toList())));
+                // Add rule names
+                for (int i = 0; i < rules.size(); i++) {
+                    if (i > 0) {
+                        buf.append(", ");
+                    }
+                    var rule = rules.get(i);
+                    buf.append(rule.precedence == -1 ? rule.ruleName : rule.ruleName + "[" + rule.precedence + "]");
+                }
                 buf.append(" = ");
-                if (astNodeLabel != null) {
-                    // Rule has AST label on toplevel clause (other AST labels are recorded for subclauses)
-                    buf.append(astNodeLabel);
-                    buf.append(':');
+                // Add any AST node labels
+                for (int i = 0, j = 0; i < rules.size(); i++) {
+                    if (j > 0) {
+                        buf.append(", ");
+                    }
+                    var rule = rules.get(i);
+                    if (rule.astNodeLabel != null) {
+                        buf.append(rule.astNodeLabel + ":");
+                        j++;
+                    }
                 }
                 buf.append(toString());
                 buf.append(')');
@@ -125,13 +125,18 @@ public abstract class Clause {
 
     // Clause factories, for clause optimization and sanity checking
 
-    public static Rule rule(String ruleName, Clause ruleClause) {
-        return new Rule(ruleName, ruleClause);
+    public static Rule rule(String ruleName, Clause clause) {
+        // Use -1 as precedence if rule group has only one precedence
+        return rule(ruleName, -1, clause);
+    }
+
+    public static Rule rule(String ruleName, int precedence, Clause clause) {
+        var rule = new Rule(ruleName, precedence, clause);
+        return rule;
     }
 
     public static Clause ast(String astNodeLabel, Clause clause) {
-        clause.astNodeLabel = astNodeLabel;
-        return clause;
+        return new ASTNodeLabel(astNodeLabel, clause);
     }
 
     public static Clause oneOrMore(Clause subClause) {
