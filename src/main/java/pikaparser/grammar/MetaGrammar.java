@@ -15,12 +15,13 @@ public class MetaGrammar {
 
     private static final String GRAMMAR = "GRAMMAR";
     private static final String LEX = "LEX";
-    private static final String WSC = "WS_OR_COMMENT";
+    private static final String WSC = "WSC";
     private static final String COMMENT = "COMMENT";
     private static final String RULE = "RULE";
     private static final String CLAUSE = "CLAUSE";
     private static final String IDENT = "IDENT";
-    private static final String LABEL = "LABEL";
+    private static final String PREC = "PREC";
+    private static final String NUM = "NUM";
     private static final String NAME_CHAR = "NAME_CHAR";
     private static final String CHAR_SET = "CHARSET";
     private static final String HEX = "Hex";
@@ -36,6 +37,7 @@ public class MetaGrammar {
     // AST node names:
 
     private static final String RULE_AST = "RuleAST";
+    private static final String PREC_AST = "PrecAST";
     private static final String IDENT_AST = "IdentAST";
     private static final String LABEL_AST = "LabelAST";
     private static final String SEQ_AST = "SeqAST";
@@ -59,38 +61,38 @@ public class MetaGrammar {
                     seq(start(), r(WSC), oneOrMore(r(RULE)))), //
 
             rule(RULE, //
-                    ast(RULE_AST, seq(r(IDENT), r(WSC), c('='), r(WSC), r(CLAUSE), r(WSC), c(';'), r(WSC)))), //
-
-            rule(LABEL, seq(ast(LABEL_AST, r(IDENT)), r(WSC), c(':'), r(WSC))), //
+                    ast(RULE_AST, seq(r(IDENT), r(WSC), //
+                            optional(r(PREC)), //
+                            c('='), r(WSC), //
+                            r(CLAUSE), r(WSC), c(';'), r(WSC)))), //
 
             // Define precedence order for clause sequences
 
-            rule(CLAUSE, 7, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
+            rule(CLAUSE, 8, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
+
+            rule(CLAUSE, 7, //
+                    first( //
+                            r(IDENT), //
+                            r(QUOTED_STRING), //
+                            r(CHAR_SET), //
+                            r(NOTHING), //
+                            r(START))), //
 
             rule(CLAUSE, 6, //
-                    seq( // 
-                            optional(r(LABEL)), //
-                            first( //
-                                    r(IDENT), //
-                                    r(QUOTED_STRING), //
-                                    r(CHAR_SET), //
-                                    r(NOTHING), //
-                                    r(START)))), //
-
-            rule(CLAUSE, 5, seq(optional(r(LABEL)), r(CLAUSE), r(WSC))), //
-
-            rule(CLAUSE, 4, //
                     first( //
                             seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c("+")),
-                            seq(ast(ZERO_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')),
-                            seq(ast(OPTIONAL_AST, r(CLAUSE)), r(WSC), c('?'))
+                            seq(ast(ZERO_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')))), //
 
-                    )), //
-
-            rule(CLAUSE, 3, //
+            rule(CLAUSE, 5, //
                     first( //
                             seq(c('&'), ast(FOLLOWED_BY_AST, r(CLAUSE))), //
                             seq(c('!'), ast(NOT_FOLLOWED_BY_AST, r(CLAUSE))))), //
+
+            rule(CLAUSE, 4, //
+                    seq(ast(OPTIONAL_AST, r(CLAUSE)), r(WSC), c('?'))), //
+
+            rule(CLAUSE, 3,
+                    seq(optional(seq(ast(LABEL_AST, r(IDENT)), r(WSC), c(':'), r(WSC))), r(CLAUSE), r(WSC))), //
 
             rule(CLAUSE, 2, //
                     ast(SEQ_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(r(CLAUSE), r(WSC)))))),
@@ -104,26 +106,28 @@ public class MetaGrammar {
             // Lex rule for preprocessing
 
             rule(LEX, //
-                    oneOrMore( //
-                            first( //
-                                    c('('), //
-                                    c(')'), //
-                                    c('='), //
-                                    c(';'), //
-                                    c(':'), //
-                                    c('^'), //
-                                    c('*'), //
-                                    c('+'), //
-                                    c('?'), //
-                                    c('|'), //
-                                    c('/'), //
-                                    c('^'), //
-                                    r(IDENT), //
-                                    r(QUOTED_STRING), //
-                                    r(CHAR_SET), //
+                    first( //
+                            c('('), //
+                            c(')'), //
+                            c('='), //
+                            c(';'), //
+                            c(':'), //
+                            c('^'), //
+                            c('*'), //
+                            c('+'), //
+                            c('?'), //
+                            c('|'), //
+                            c('/'), //
+                            c('^'), //
+                            c('-'), //
+                            // Match both CHAR_SET and PREC, since PREC looks like a CHAR_SET
+                            longest(r(PREC), r(CHAR_SET)), //
+                            r(IDENT), //
+                            r(NUM), //
+                            r(QUOTED_STRING), //
 
-                                    // WS/comment has to come last, since it can match Nothing
-                                    r(WSC)))), //
+                            // WS/comment has to come last, since it can match Nothing
+                            r(WSC))), //
 
             rule(WSC, //
                     zeroOrMore(first(c(" \n\r\t"), r(COMMENT)))),
@@ -134,7 +138,14 @@ public class MetaGrammar {
             rule(IDENT, //
                     ast(IDENT_AST, oneOrMore(r(NAME_CHAR)))), //
 
-            rule(NAME_CHAR, c(c('a', 'z'), c('A', 'Z'), c("_-"))),
+            rule(NUM, //
+                    oneOrMore(c('0', '9'))), //
+
+            rule(NAME_CHAR, //
+                    c(c('a', 'z'), c('A', 'Z'), c("_-"))),
+
+            rule(PREC, //
+                    seq(c('['), r(WSC), ast(PREC_AST, r(NUM)), r(WSC), c(']'), r(WSC))), //
 
             rule(CHAR_SET, //
                     first( //
@@ -267,7 +278,7 @@ public class MetaGrammar {
         String nextNodeLabel = null;
         for (int i = 0; i < astNodes.size(); i++) {
             var astNode = astNodes.get(i);
-            if (astNode.astLabel.equals(LABEL_AST)) {
+            if (astNode.label.equals(LABEL_AST)) {
                 // A label AST node precedes the labeled clause
                 nextNodeLabel = astNode.getText(input);
             } else {
@@ -286,7 +297,7 @@ public class MetaGrammar {
 
     private static Clause parseASTNode(ASTNode astNode, String input) {
         Clause clause;
-        switch (astNode.astLabel) {
+        switch (astNode.label) {
         case SEQ_AST:
             clause = seq(parseASTNodes(astNode.children, input));
             break;
@@ -340,7 +351,7 @@ public class MetaGrammar {
             break;
         }
         // Insert CreateASTNode node into grammar if there is an AST node label 
-        String astNodeLabel = astNode.children.size() > 0 && astNode.getFirstChild().astLabel.equals(LABEL_AST)
+        String astNodeLabel = astNode.children.size() > 0 && astNode.getFirstChild().label.equals(LABEL_AST)
                 ? astNode.getFirstChild().getText(input)
                 : null;
         if (astNodeLabel != null) {
@@ -351,13 +362,16 @@ public class MetaGrammar {
     }
 
     private static Rule parseRule(ASTNode ruleNode, String input) {
-        if (ruleNode.children.size() != 2) {
-            throw new IllegalArgumentException("Expected 2 children; got " + ruleNode.children.size());
+        String ruleName = ruleNode.getFirstChild().getText(input);
+        var hasPrecedence = ruleNode.getSecondChild().label.equals(PREC_AST);
+        if (ruleNode.children.size() > (hasPrecedence ? 3 : 2)) {
+            throw new IllegalArgumentException(
+                    "Expected " + (hasPrecedence ? 3 : 2) + " children; got " + ruleNode.children.size());
         }
-        String name = ruleNode.getFirstChild().getText(input);
-        ASTNode astNode = ruleNode.getSecondChild();
+        int precedence = hasPrecedence ? Integer.parseInt(ruleNode.getSecondChild().getText(input)) : -1;
+        var astNode = hasPrecedence ? ruleNode.getThirdChild() : ruleNode.getSecondChild();
         Clause clause = parseASTNode(astNode, input);
-        return rule(name, clause);
+        return rule(ruleName, precedence, clause);
     }
 
     public static Grammar parseGrammar(Parser parser) {
@@ -371,7 +385,7 @@ public class MetaGrammar {
         List<Rule> rules = new ArrayList<>();
         String lexRuleName = null;
         for (ASTNode astNode : topLevelASTNode.children) {
-            if (!astNode.astLabel.equals(RULE_AST)) {
+            if (!astNode.label.equals(RULE_AST)) {
                 throw new IllegalArgumentException("Wrong node type");
             }
             Rule rule = parseRule(astNode, parser.input);

@@ -75,7 +75,7 @@ public class MemoEntry {
             // Replace bestMatch with newMatch
             bestMatch = bestNewMatch;
             numMatchObjectsMemoized.incrementAndGet();
-
+            
             StringBuilder debug = null;
             if (Parser.DEBUG) {
                 debug = new StringBuilder();

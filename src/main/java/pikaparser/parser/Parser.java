@@ -45,23 +45,21 @@ public class Parser {
 
         // If a lex rule was specified, seed the bottom-up parsing by running the lex rule top-down
         if (grammar.lexClause != null) {
-            // Run lex preprocessing step, top-down
-            var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable,
-                    new MemoKey(grammar.lexClause, /* startPos = */ 0), input, updatedEntries);
-            if (match != null) {
-                if (match.len == 0) {
-                    // Without testing for zero-length matches, could get stuck in an infinite loop
-                    throw new IllegalArgumentException("Lex rule cannot match zero characters");
-                } else if (match.len < input.length()) {
-                    throw new IllegalArgumentException("Lex rule did not match whole input (only the first "
-                            + match.len + " out of " + input.length() + " characters were matched)");
+            // Run lex preprocessing step, top-down, from each character position, skipping to end of each
+            // subsequent match
+            for (int i = 0; i < input.length();) {
+                var memoKey = new MemoKey(grammar.lexClause, /* startPos = */ i);
+                var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
+                        updatedEntries);
+                var matchLen = match != null ? match.len : 0;
+                if (match != null) {
+                    if (Parser.DEBUG) {
+                        System.out.println("Lex match: " + match.toStringWithRuleNames() + "\n");
+                    }
                 }
-                if (Parser.DEBUG) {
-                    System.out.println("Seed lex match: " + match.toStringWithRuleNames() + "\n");
-                }
-            } else {
-                throw new IllegalArgumentException("Lex rule did not match input");
+                i += Math.max(1, matchLen);
             }
+            // TODO: report warning for areas lex rule did not match
         } else {
             // Find positions that all terminals match, and create the initial active set from parents of terminals,
             // without adding memo table entries for terminals that do not match (no non-matching placeholder needs

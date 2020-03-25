@@ -7,14 +7,14 @@ import pikaparser.clause.Clause;
 
 public class ASTNode {
 
-    public final String astLabel;
+    public final String label;
     public final int startPos;
     public final int len;
     public final List<ASTNode> children;
     public final Clause nodeType;
 
     public ASTNode(String nodeName, Clause nodeType, int startPos, int len) {
-        this.astLabel = nodeName;
+        this.label = nodeName;
         this.nodeType = nodeType;
         this.startPos = startPos;
         this.len = len;
@@ -33,7 +33,7 @@ public class ASTNode {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + astLabel + " " + startPos + "+" + len + " : \"" + inp + "\"");
+        System.out.println(indentStr + "+-- " + label + " " + startPos + "+" + len + " : \"" + inp + "\"");
         if (children != null) {
             for (int i = 0; i < children.size(); i++) {
                 var subClauseMatch = children.get(i);
@@ -48,7 +48,7 @@ public class ASTNode {
     }
 
     private void getAllDescendantsNamed(String name, List<ASTNode> termsOut) {
-        if (astLabel.equals(name)) {
+        if (label.equals(name)) {
             termsOut.add(this);
         } else {
             for (ASTNode child : children) {
@@ -64,7 +64,7 @@ public class ASTNode {
     }
 
     public ASTNode getFirstDescendantNamed(String name) {
-        if (astLabel.equals(name)) {
+        if (label.equals(name)) {
             return this;
         } else {
             for (ASTNode child : children) {
@@ -93,6 +93,13 @@ public class ASTNode {
             throw new IllegalArgumentException("No second child");
         }
         return children.get(1);
+    }
+
+    public ASTNode getThirdChild() {
+        if (children.size() < 3) {
+            throw new IllegalArgumentException("No third child");
+        }
+        return children.get(2);
     }
 
     public ASTNode getChild(int i) {
