@@ -24,7 +24,8 @@ public class CharSeq extends Terminal {
         // Terminals are always matched top-down
         if (memoKey.startPos < input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
-            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, str.length(), updatedEntries);
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0,
+                    /* terminalLen = */ str.length(), Match.NO_SUBCLAUSE_MATCHES, updatedEntries);
         }
         // Don't call MemoTable.addMatch for terminals that don't match, to limit size of memo table
         return null;

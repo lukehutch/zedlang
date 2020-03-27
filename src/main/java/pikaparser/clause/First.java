@@ -16,7 +16,6 @@ public class First extends Clause {
         }
     }
 
-
     @Override
     public void testWhetherCanMatchZeroChars() {
         for (int i = 0; i < subClauses.length; i++) {
@@ -39,9 +38,11 @@ public class First extends Clause {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
-            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
+            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey,
+                    updatedEntries);
             if (subClauseMatch != null) {
-                return memoTable.addMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch }, updatedEntries);
+                return memoTable.addMatch(memoKey, subClauseIdx, /* terminalLen = */ 0,
+                        new Match[] { subClauseMatch }, updatedEntries);
             }
         }
         return null;

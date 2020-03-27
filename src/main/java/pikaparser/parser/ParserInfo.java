@@ -38,7 +38,7 @@ public class ParserInfo {
                 buf[i].append("[terminal] ");
             }
             if (clause.canMatchZeroChars) {
-                buf[i].append("[alwaysMatches] ");
+                buf[i].append("[canMatchZeroChars] ");
             }
             buf[i].append(clause.toStringWithRuleNames());
             marginWidth = Math.max(marginWidth, buf[i].length() + 2);
@@ -169,7 +169,7 @@ public class ParserInfo {
                     if (!overlapsPrevMatch || showAllMatches) {
                         var indent = overlapsPrevMatch ? "    " : "";
                         System.out.println("\n" + indent + "#");
-                        match.printTree(parser.input, indent, i == matches.size() - 1);
+                        match.printTreeView(parser.input, indent, i == matches.size() - 1);
                     }
                     int newEndPos = match.memoKey.startPos + match.len;
                     if (newEndPos > prevEndPos) {
@@ -191,7 +191,7 @@ public class ParserInfo {
                 var ast = topLevelMatch.toAST(topLevelASTNodeName, parser.input);
                 if (ast != null) {
                     System.out.println();
-                    ast.printTree(parser.input);
+                    System.out.println(ast.toString());
                 }
             }
         } else {

@@ -82,8 +82,15 @@ public class MemoTable {
             // Special case -- if there is no current best match for the memo, but the subclause always matches,
             // need to create and memoize a new zero-width match. This will trigger the parent clause to be
             // reevaluated in the next iteration.
-            var newMatch = new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
-                    Match.NO_SUBCLAUSE_MATCHES);
+            int firstMatchingSubClauseIdx = 0;
+            for (int i = 0; i < memoKey.clause.subClauses.length; i++) {
+                // Find index of first subclause that can match zero characters
+                if (memoKey.clause.subClauses[i].canMatchZeroChars) {
+                    firstMatchingSubClauseIdx = i;
+                    break;
+                }
+            }
+            var newMatch = new Match(memoKey, firstMatchingSubClauseIdx, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
             if (newMatch != null) {
                 // Update the memo table if a new match was found.
                 memoEntry.addNewBestMatch(newMatch, updatedEntries);
@@ -91,7 +98,7 @@ public class MemoTable {
             // Return the match, or null if no match was found
             return newMatch;
         }
-        
+
         // No match was found in the memo table
         return null;
     }
@@ -100,35 +107,22 @@ public class MemoTable {
      * Add a new {@link Match} to the memo table. Called when the subclauses of a clause match according to the
      * match criteria for the clause.
      */
-    public Match addMatch(MemoKey memoKey, int firstMatchingSubClauseIdx, Match[] subClauseMatches,
+    public Match addMatch(MemoKey memoKey, int firstMatchingSubClauseIdx, int terminalLen, Match[] subClauseMatches,
             Set<MemoEntry> updatedEntries) {
-        // Get MemoEntry for the MemoKey
+        // Get or create MemoEntry for the MemoKey
         var memoEntry = getOrCreateMemoEntry(memoKey);
 
-        // Find total length of all subclause matches -- this is the length of the match for the MemoKey
-        var len = 0;
-        for (Match subClauseMatch : subClauseMatches) {
-            len += subClauseMatch.len;
+        // Find total length of all subclause matches (or use terminalLen if this is a terminal) --
+        // this is the length of the match for the MemoKey
+        var len = terminalLen;
+        if (subClauseMatches.length > 0) {
+            for (Match subClauseMatch : subClauseMatches) {
+                len += subClauseMatch.len;
+            }
         }
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
         var newMatch = new Match(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches);
-        numMatchObjectsCreated.incrementAndGet();
-
-        // Update the memo table if a new better match was found.
-        memoEntry.addNewBestMatch(newMatch, updatedEntries);
-        return newMatch;
-    }
-
-    /**
-     * Add a new {@link Match} to the memo table for a terminal.
-     */
-    public Match addMatch(MemoKey memoKey, int firstMatchingSubClauseIdx, int len, Set<MemoEntry> updatedEntries) {
-        // Get MemoEntry for the MemoKey
-        var memoEntry = getOrCreateMemoEntry(memoKey);
-
-        // Record the new match in the memo entry, and schedule the memo entry to be updated  
-        var newMatch = new Match(memoKey, firstMatchingSubClauseIdx, len, Match.NO_SUBCLAUSE_MATCHES);
         numMatchObjectsCreated.incrementAndGet();
 
         // Update the memo table if a new better match was found.

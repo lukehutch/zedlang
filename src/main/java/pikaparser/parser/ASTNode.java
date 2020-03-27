@@ -12,39 +12,19 @@ public class ASTNode {
     public final int len;
     public final List<ASTNode> children;
     public final Clause nodeType;
+    public final String input;
 
-    public ASTNode(String nodeName, Clause nodeType, int startPos, int len) {
+    public ASTNode(String nodeName, Clause nodeType, int startPos, int len, String input) {
         this.label = nodeName;
         this.nodeType = nodeType;
         this.startPos = startPos;
         this.len = len;
         this.children = new ArrayList<>();
+        this.input = input;
     }
 
     public void addChild(ASTNode child) {
         children.add(child);
-    }
-
-    public void printTree(String input, String indentStr, boolean isLastChild) {
-        int inpLen = 80;
-        String inp = input.substring(startPos, Math.min(input.length(), startPos + Math.min(len, inpLen)));
-        if (inp.length() == inpLen) {
-            inp += "...";
-        }
-        inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
-        System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + label + " " + startPos + "+" + len + " : \"" + inp + "\"");
-        if (children != null) {
-            for (int i = 0; i < children.size(); i++) {
-                var subClauseMatch = children.get(i);
-                subClauseMatch.printTree(input, indentStr + (isLastChild ? "    " : "|   "),
-                        i == children.size() - 1);
-            }
-        }
-    }
-
-    public void printTree(String input) {
-        printTree(input, "", true);
     }
 
     private void getAllDescendantsNamed(String name, List<ASTNode> termsOut) {
@@ -106,7 +86,32 @@ public class ASTNode {
         return children.get(i);
     }
 
-    public String getText(String input) {
+    public String getText() {
         return input.substring(startPos, startPos + len);
+    }
+
+    private void renderTreeView(String indentStr, boolean isLastChild, StringBuilder buf) {
+        int inpLen = 80;
+        String inp = input.substring(startPos, Math.min(input.length(), startPos + Math.min(len, inpLen)));
+        if (inp.length() == inpLen) {
+            inp += "...";
+        }
+        inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
+        buf.append(indentStr + "|   \n");
+        buf.append(indentStr + "+-- " + label + " " + startPos + "+" + len + " : \"" + inp + "\"\n");
+        if (children != null) {
+            for (int i = 0; i < children.size(); i++) {
+                var subClauseMatch = children.get(i);
+                subClauseMatch.renderTreeView(indentStr + (isLastChild ? "    " : "|   "),
+                        i == children.size() - 1, buf);
+            }
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder buf = new StringBuilder();
+        renderTreeView("", true, buf);
+        return buf.toString();
     }
 }

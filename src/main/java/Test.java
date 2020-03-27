@@ -32,12 +32,14 @@ public class Test {
             //String grammarStr = "1*2+3*(4+-5)*6";
             String grammarStr = "1+2+3*4+4*5/(3+((4))*--7)+5";
 
-            Parser parser = new Parser(PrecedenceGrammar.grammar, grammarStr);
+            Parser parser = new Parser(PrecedenceGrammar.grammar);
+            parser.parse(grammarStr);
             //            Parser parser = new Parser(new Grammar(Arrays.asList( //
             //                    rule("Rule1", seq(c('a'), c('='), optional(r("Label")), ast("Name", r("Name")))), //
             //                    rule("Label", seq(ast("Label", r("Name")), c(':'))), //
             //                    rule("Name", oneOrMore(new CharSet('a', 'z'))) //
-            //            )), grammarStr);
+            //            )));
+            //            parser.parse(grammarStr);
 
             ParserInfo.printParseResult(parser, "Expr", false);
         }

@@ -1,0 +1,6 @@
+
+import zed.math.Math;
+import zed.io;
+
+x = 5;
+y = 3;

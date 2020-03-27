@@ -90,7 +90,7 @@ public class Match implements Comparable<Match> {
             if (subClauseASTNodeLabel != null) {
                 // Create an AST node for any labeled sub-clauses
                 var newASTNode = new ASTNode(subClauseASTNodeLabel, subClauseMatch.memoKey.clause,
-                        subClauseMatch.memoKey.startPos, subClauseMatch.len);
+                        subClauseMatch.memoKey.startPos, subClauseMatch.len, input);
                 parent.addChild(newASTNode);
                 parentOfSubclause = newASTNode;
             }
@@ -99,12 +99,12 @@ public class Match implements Comparable<Match> {
     }
 
     public ASTNode toAST(String rootNodeLabel, String input) {
-        var root = new ASTNode(rootNodeLabel, memoKey.clause, memoKey.startPos, len);
+        var root = new ASTNode(rootNodeLabel, memoKey.clause, memoKey.startPos, len, input);
         toAST(root, input);
         return root;
     }
 
-    public void printTree(String input, String indentStr, boolean isLastChild) {
+    public void printTreeView(String input, String indentStr, boolean isLastChild) {
         int inpLen = 80;
         String inp = input.substring(memoKey.startPos,
                 Math.min(input.length(), memoKey.startPos + Math.min(len, inpLen)));
@@ -117,14 +117,14 @@ public class Match implements Comparable<Match> {
         if (subClauseMatches != null) {
             for (int i = 0; i < subClauseMatches.length; i++) {
                 var subClauseMatch = subClauseMatches[i];
-                subClauseMatch.printTree(input, indentStr + (isLastChild ? "    " : "|   "),
+                subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "    " : "|   "),
                         i == subClauseMatches.length - 1);
             }
         }
     }
 
-    public void printTree(String input) {
-        printTree(input, "", true);
+    public void printTreeView(String input) {
+        printTreeView(input, "", true);
     }
 
     public String toStringWithRuleNames() {

@@ -27,8 +27,8 @@ public class FollowedBy extends Clause {
         var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
         // Replace any valid subclause match with a zero-char-consuming match
         if (subClauseMatch != null) {
-            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, new Match[] { subClauseMatch },
-                    updatedEntries);
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,
+                    new Match[] { subClauseMatch }, updatedEntries);
         }
         return null;
     }

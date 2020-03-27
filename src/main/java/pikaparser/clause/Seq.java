@@ -69,7 +69,8 @@ public class Seq extends Clause {
             subClauseMatches[subClauseIdx] = subClauseMatch;
             currStartPos += subClauseMatch.len;
         }
-        return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches, updatedEntries);
+        return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,
+                subClauseMatches, updatedEntries);
     }
 
     @Override

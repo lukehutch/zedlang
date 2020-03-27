@@ -44,8 +44,8 @@ public class Longest extends Clause {
             }
         }
         return longestSubClauseMatch == null ? null
-                : memoTable.addMatch(memoKey, longestSubClauseMatchIdx, new Match[] { longestSubClauseMatch },
-                        updatedEntries);
+                : memoTable.addMatch(memoKey, longestSubClauseMatchIdx, /* terminalLen = */ 0,
+                        new Match[] { longestSubClauseMatch }, updatedEntries);
     }
 
     @Override

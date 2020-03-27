@@ -20,9 +20,6 @@ public class Start extends Terminal {
 
     Start() {
         super();
-        // Need to mark a Start token at the beginning of a sequence as matching zero characters, so that
-        // the parent clause is triggered in the case of Seq(Start, X)
-        canMatchZeroChars = true;
     }
 
     @Override
@@ -31,7 +28,8 @@ public class Start extends Terminal {
         // Terminals are always matched top-down
         // Match zero characters at beginning of input
         if (memoKey.startPos == 0) {
-            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0, updatedEntries);
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,
+                    Match.NO_SUBCLAUSE_MATCHES, updatedEntries);
         }
         // Don't call MemoTable.addMatch for non-matching terminals, to limit size of memo table
         return null;

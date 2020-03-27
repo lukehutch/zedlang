@@ -13,10 +13,9 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public class Parser {
-
-    public final String input;
-
     public final Grammar grammar;
+
+    public String input;
 
     public final MemoTable memoTable = new MemoTable();
 
@@ -24,10 +23,17 @@ public class Parser {
 
     public static final boolean DEBUG = false;
 
-    public Parser(Grammar grammar, String input) {
+    public Parser(Grammar grammar) {
         this.grammar = grammar;
-        this.input = input;
+    }
 
+    public void parse(String input) {
+        if (this.input != null) {
+            throw new IllegalArgumentException(
+                    "Can only call parse(String input) once per " + Parser.class.getSimpleName() + " instance");
+        }
+        this.input = input;
+        
         // A set of MemoKey instances for entries that need matching
         var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
 

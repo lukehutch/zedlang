@@ -90,13 +90,14 @@ public class CharSet extends Terminal {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {        
+            Set<MemoEntry> updatedEntries) {
         // Terminals are always matched top-down
         if (memoKey.startPos >= input.length()) {
             return null;
         }
         if (matches(memoKey, input)) {
-            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1, updatedEntries);
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 1,
+                    Match.NO_SUBCLAUSE_MATCHES, updatedEntries);
         }
         // Don't call MemoTable.addMatch for terminals that don't match, to limit size of memo table
         return null;

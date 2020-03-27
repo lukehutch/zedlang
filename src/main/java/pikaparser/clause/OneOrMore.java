@@ -29,7 +29,8 @@ public class OneOrMore extends Clause {
         var currStartPos = memoKey.startPos;
         for (;;) {
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
-            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
+            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey,
+                    updatedEntries);
             if (subClauseMatch == null) {
                 break;
             }
@@ -45,7 +46,7 @@ public class OneOrMore extends Clause {
             currStartPos += subClauseMatch.len;
         }
         return subClauseMatches == null ? null
-                : memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0,
+                : memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,
                         subClauseMatches.toArray(Match.NO_SUBCLAUSE_MATCHES), updatedEntries);
     }
 
