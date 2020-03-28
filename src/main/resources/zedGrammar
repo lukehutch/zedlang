@@ -2,41 +2,41 @@
 # Lex rule:
 
 # Import has to come before Ident because Ident matches "import"
-Lex = Import / Ident / EnumConst / Num / LParen / RParen / Eq / Semi / Dot / WS;
+Lex = Import / Ident / EnumConst / Num / LParen / RParen / Eq / Semi / Dot / ArithOp / W;
 
+Import = "import";
+Ident = [a-zA-Z_][a-zA-Z0-9_]*;
+EnumConst = '#' Ident;
+Num = Digit+ / Digit* Dot Digit+ [fF]?;
 LParen = '('; 
 RParen = ')'; 
 Eq = '=';
 Semi = ';';
 Dot = '.';
+ArithOp = '+' / '-' / '*' / '/';
 Digit = [0-9];
-Import = "import";
 
-WS = (' ' / '\t' / '\n' / '\r' / '\f')*;
-
-Ident = [a-zA-Z_][a-zA-Z0-9_]*;
-
-EnumConst = '#' Ident;
-
-Num = Digit+ / Digit* Dot Digit+ [fF]?;
+# Don't match zero or more whitespace chars in Lex rule, so that we can see where lex fails 
+W = (' ' / '\t' / '\n' / '\r' / '\f');
+WS = W*;
 
 # Post-lex grammar:
 
-Program = ^ WS (ImportStatement WS)* (Statement WS)+;
+Program = ^ WS (ImportStatement WS)* (Assignment WS)+;
 
 ImportStatement = Import WS import:Package WS Semi;
 
 Package = Ident (Dot Package)?;
 
-Statement = statement:(lvalue:Ident WS Eq WS expr:Expr WS Semi);
+Assignment = assign:(lvalue:Ident WS Eq WS expr:Expr WS Semi);
 
 Expr[5] = '(' WS Expr WS ')';
 
-Expr[4] = Ident / EnumConst / Num;
+Expr[4] = ident:Ident / enumConst:EnumConst / num:Num;
 
 Expr[3] = '-'+ Expr;
 
-Expr[2] = Expr WS (('*' / '/') WS Expr)+;
+Expr[2] = arith:(Expr WS (op:('*' / '/') WS Expr WS)+);
 
-Expr[1] = Expr WS (('+' / '-') WS Expr)+;
+Expr[1] = arith:(Expr WS (op:('+' / '-') WS Expr WS)+);
 

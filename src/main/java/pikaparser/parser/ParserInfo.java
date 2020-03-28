@@ -7,7 +7,6 @@ import java.util.List;
 import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
-import pikaparser.grammar.RuleGroup;
 import pikaparser.memotable.Match;
 
 public class ParserInfo {
@@ -116,15 +115,15 @@ public class ParserInfo {
     }
 
     public static void printParseResult(Parser parser, String topLevelRuleName, boolean showAllMatches) {
-        RuleGroup topLevelRuleGroup = parser.grammar.ruleNameToRuleGroup.get(topLevelRuleName);
-        if (topLevelRuleGroup == null) {
+        var topLevelRule = parser.grammar.getRule(topLevelRuleName);
+        if (topLevelRule == null) {
             throw new IllegalArgumentException("No clause named \"" + topLevelRuleName + "\"");
         }
 
         // Print parse tree, and find which characters were consumed and which weren't
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
 
-        var topLevelRuleClause = topLevelRuleGroup.getBaseClause();
+        var topLevelRuleClause = topLevelRule.clause;
         var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRuleClause);
         if (!topLevelMatches.isEmpty()) {
             for (int i = 0; i < topLevelMatches.size(); i++) {
@@ -161,6 +160,18 @@ public class ParserInfo {
             if (!matches.isEmpty()) {
                 System.out.println("\n====================================\n\nMatches for "
                         + clause.toStringWithRuleNames() + " :");
+                // Get toplevel AST node label(s), if present
+                String astNodeLabel = "";
+                if (clause.rules != null) {
+                    for (var rule : clause.rules) {
+                        if (rule.astNodeLabel != null) {
+                            if (!astNodeLabel.isEmpty()) {
+                                astNodeLabel += ",";
+                            }
+                            astNodeLabel += rule.astNodeLabel;
+                        }
+                    }
+                }
                 var prevEndPos = -1;
                 for (int i = 0; i < matches.size(); i++) {
                     var match = matches.get(i);
@@ -169,7 +180,8 @@ public class ParserInfo {
                     if (!overlapsPrevMatch || showAllMatches) {
                         var indent = overlapsPrevMatch ? "    " : "";
                         System.out.println("\n" + indent + "#");
-                        match.printTreeView(parser.input, indent, i == matches.size() - 1);
+                        match.printTreeView(parser.input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel,
+                                i == matches.size() - 1);
                     }
                     int newEndPos = match.memoKey.startPos + match.len;
                     if (newEndPos > prevEndPos) {
@@ -182,7 +194,7 @@ public class ParserInfo {
         System.out.println(
                 "\n====================================\n\nFinal AST for rule \"" + topLevelRuleName + "\":");
         if (!topLevelMatches.isEmpty()) {
-            var topLevelASTNodeName = topLevelRuleGroup.getASTNodeLabel();
+            var topLevelASTNodeName = topLevelRule.astNodeLabel;
             if (topLevelASTNodeName == null) {
                 topLevelASTNodeName = "<root>";
             }

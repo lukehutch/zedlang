@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import pikaparser.grammar.Rule;
 import pikaparser.memotable.Match;
@@ -92,13 +93,8 @@ public abstract class Clause {
                 StringBuilder buf = new StringBuilder();
                 buf.append('(');
                 // Add rule names
-                for (int i = 0; i < rules.size(); i++) {
-                    if (i > 0) {
-                        buf.append(", ");
-                    }
-                    var rule = rules.get(i);
-                    buf.append(rule.precedence == -1 ? rule.ruleName : rule.ruleName + "[" + rule.precedence + "]");
-                }
+                buf.append(String.join(", ",
+                        rules.stream().map(rule -> rule.ruleName).sorted().collect(Collectors.toList())));
                 buf.append(" = ");
                 // Add any AST node labels
                 for (int i = 0, j = 0; i < rules.size(); i++) {

@@ -25,8 +25,7 @@ public class Match implements Comparable<Match> {
     /** There are no subclause matches for terminals. */
     public static final Match[] NO_SUBCLAUSE_MATCHES = new Match[0];
 
-    public Match(MemoKey memoKey, int firstMatchingSubClauseIdx, int len,
-            Match[] subClauseMatches) {
+    public Match(MemoKey memoKey, int firstMatchingSubClauseIdx, int len, Match[] subClauseMatches) {
         this.memoKey = memoKey;
         this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
         this.len = len;
@@ -74,18 +73,23 @@ public class Match implements Comparable<Match> {
         return input.substring(memoKey.startPos, memoKey.startPos + len);
     }
 
+    private String getSubClauseASTNodeLabel(int subClauseMatchIdx) {
+        // For OneOrMore clauses, there's only one subclause (and therefore only one subclause label),
+        // no matter how many matches. For First and Longest clauses, firstMatchingSubClauseIdx gives the
+        // index of the matching clause (for other clause types, firstMatchingSubClauseIdx is zero).
+        // For Seq, subClauseMatchIdx pairs subclause labels with subclauses.
+        var subClauseLabelIdx = memoKey.clause instanceof OneOrMore ? 0
+                : firstMatchingSubClauseIdx + subClauseMatchIdx;
+        var subClauseASTNodeLabel = memoKey.clause.subClauseASTNodeLabels == null ? null
+                : memoKey.clause.subClauseASTNodeLabels[subClauseLabelIdx];
+        return subClauseASTNodeLabel;
+    }
+
     private void toAST(ASTNode parent, String input) {
         // Recurse to descendants
-        var isOneOrMore = memoKey.clause instanceof OneOrMore;
-        for (int i = 0; i < subClauseMatches.length; i++) {
-            var subClauseMatch = subClauseMatches[i];
-            // For OneOrMore clauses, there's only one subclause (and therefore only one subclause label),
-            // no matter how many matches. For First and Longest clauses, firstMatchingSubClauseIdx gives the
-            // index of the matching clause (for other clause types, firstMatchingSubClauseIdx is zero).
-            // For Seq, the subclause index i pairs subclause labels with subclauses.
-            var subClauseLabelIdx = isOneOrMore ? 0 : firstMatchingSubClauseIdx + i;
-            var subClauseASTNodeLabel = memoKey.clause.subClauseASTNodeLabels == null ? null
-                    : memoKey.clause.subClauseASTNodeLabels[subClauseLabelIdx];
+        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatches.length; subClauseMatchIdx++) {
+            var subClauseMatch = subClauseMatches[subClauseMatchIdx];
+            var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
             ASTNode parentOfSubclause = parent;
             if (subClauseASTNodeLabel != null) {
                 // Create an AST node for any labeled sub-clauses
@@ -104,7 +108,7 @@ public class Match implements Comparable<Match> {
         return root;
     }
 
-    public void printTreeView(String input, String indentStr, boolean isLastChild) {
+    public void printTreeView(String input, String indentStr, String astNodeLabel, boolean isLastChild) {
         int inpLen = 80;
         String inp = input.substring(memoKey.startPos,
                 Math.min(input.length(), memoKey.startPos + Math.min(len, inpLen)));
@@ -113,18 +117,21 @@ public class Match implements Comparable<Match> {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + memoKey.toStringWithRuleNames() + "+" + len + " \"" + inp + "\"");
+        System.out.println(indentStr + "+-- " + (astNodeLabel == null ? "" : astNodeLabel + ":(")
+                + memoKey.toStringWithRuleNames() + (astNodeLabel == null ? "" : ")") + "+" + len + " \"" + inp
+                + "\"");
         if (subClauseMatches != null) {
-            for (int i = 0; i < subClauseMatches.length; i++) {
-                var subClauseMatch = subClauseMatches[i];
+            for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatches.length; subClauseMatchIdx++) {
+                var subClauseMatch = subClauseMatches[subClauseMatchIdx];
+                var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
                 subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "    " : "|   "),
-                        i == subClauseMatches.length - 1);
+                        subClauseASTNodeLabel, subClauseMatchIdx == subClauseMatches.length - 1);
             }
         }
     }
 
     public void printTreeView(String input) {
-        printTreeView(input, "", true);
+        printTreeView(input, "", null, true);
     }
 
     public String toStringWithRuleNames() {
