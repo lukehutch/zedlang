@@ -6,6 +6,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 public class First extends Clause {
 
@@ -44,6 +45,9 @@ public class First extends Clause {
                 return memoTable.addMatch(memoKey, subClauseIdx, /* terminalLen = */ 0,
                         new Match[] { subClauseMatch }, updatedEntries);
             }
+        }
+        if (Parser.DEBUG) {
+            System.out.println("All subclauses failed to match at position " + memoKey.startPos + ": " + memoKey);
         }
         return null;
     }

@@ -6,6 +6,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 public class NotFollowedBy extends Clause {
 
@@ -22,6 +23,9 @@ public class NotFollowedBy extends Clause {
         if (subClauseMatch == null) {
             return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,
                     new Match[] { subClauseMatch }, updatedEntries);
+        }
+        if (Parser.DEBUG) {
+            System.out.println("Failed to match at position " + memoKey.startPos + ": " + memoKey);
         }
         return null;
     }

@@ -6,6 +6,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 public class Longest extends Clause {
 
@@ -43,9 +44,16 @@ public class Longest extends Clause {
                 longestSubClauseMatchIdx = subClauseIdx;
             }
         }
-        return longestSubClauseMatch == null ? null
-                : memoTable.addMatch(memoKey, longestSubClauseMatchIdx, /* terminalLen = */ 0,
-                        new Match[] { longestSubClauseMatch }, updatedEntries);
+        if (longestSubClauseMatch != null) {
+            return memoTable.addMatch(memoKey, longestSubClauseMatchIdx, /* terminalLen = */ 0,
+                    new Match[] { longestSubClauseMatch }, updatedEntries);
+        } else {
+            if (Parser.DEBUG) {
+                System.out
+                        .println("All subclauses failed to match at position " + memoKey.startPos + ": " + memoKey);
+            }
+            return null;
+        }
     }
 
     @Override

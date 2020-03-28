@@ -11,6 +11,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 public class CharSet extends Terminal {
 
@@ -84,6 +85,9 @@ public class CharSet extends Terminal {
                     return true;
                 }
             }
+        }
+        if (Parser.DEBUG) {
+            System.out.println("Failed to match at position " + memoKey.startPos + ": " + memoKey);
         }
         return false;
     }

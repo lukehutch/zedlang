@@ -6,6 +6,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 /**
  * Always use this rule at the start of the toplevel rule -- it will trigger parsing even if the rest of the
@@ -32,6 +33,10 @@ public class Start extends Terminal {
                     Match.NO_SUBCLAUSE_MATCHES, updatedEntries);
         }
         // Don't call MemoTable.addMatch for non-matching terminals, to limit size of memo table
+        if (Parser.DEBUG) {
+            System.out.println(getClass().getSimpleName() + " failed to match at position " + memoKey.startPos
+                    + ": " + memoKey);
+        }
         return null;
     }
 

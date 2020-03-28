@@ -8,6 +8,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 public class OneOrMore extends Clause {
     OneOrMore(Clause subClause) {
@@ -45,9 +46,15 @@ public class OneOrMore extends Clause {
             }
             currStartPos += subClauseMatch.len;
         }
-        return subClauseMatches == null ? null
-                : memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,
-                        subClauseMatches.toArray(Match.NO_SUBCLAUSE_MATCHES), updatedEntries);
+        if (subClauseMatches != null) {
+            return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,
+                    subClauseMatches.toArray(Match.NO_SUBCLAUSE_MATCHES), updatedEntries);
+        } else {
+            if (Parser.DEBUG) {
+                System.out.println("Zero matches at position " + memoKey.startPos + ": " + memoKey);
+            }
+            return null;
+        }
     }
 
     @Override

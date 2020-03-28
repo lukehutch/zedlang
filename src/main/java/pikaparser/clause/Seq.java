@@ -8,6 +8,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 public class Seq extends Clause {
 
@@ -61,6 +62,10 @@ public class Seq extends Clause {
                     updatedEntries);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
+                if (Parser.DEBUG) {
+                    System.out.println("Failed to match at subClauseIdx " + subClauseIdx + ", position "
+                            + currStartPos + ": " + memoKey);
+                }
                 return null;
             }
             if (subClauseMatches == null) {

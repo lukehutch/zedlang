@@ -53,7 +53,7 @@ public class MemoEntry {
             updatedEntries.add(this);
 
             if (Parser.DEBUG) {
-                System.out.println("Found better match: " + newMatch.toStringWithRuleNames() + "\n");
+                System.out.println("Found better match: " + newMatch.toStringWithRuleNames());
             }
         }
     }
@@ -103,7 +103,7 @@ public class MemoEntry {
             }
 
             if (Parser.DEBUG) {
-                System.out.println(debug);
+                System.out.print(debug);
             }
 
             // Clear backrefs for the next iteration

@@ -60,7 +60,7 @@ public class Parser {
                 var matchLen = match != null ? match.len : 0;
                 if (match != null) {
                     if (Parser.DEBUG) {
-                        System.out.println("Lex match: " + match.toStringWithRuleNames() + "\n");
+                        System.out.println("Lex match: " + match.toStringWithRuleNames());
                     }
                 }
                 i += Math.max(1, matchLen);
@@ -84,7 +84,7 @@ public class Parser {
                             if (match != null) {
                                 if (Parser.DEBUG) {
                                     System.out.println(
-                                            "Initial terminal match: " + match.toStringWithRuleNames() + "\n");
+                                            "Initial terminal match: " + match.toStringWithRuleNames());
                                 }
                             }
                             if (clause instanceof Start) {

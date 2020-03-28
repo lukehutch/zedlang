@@ -6,6 +6,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.Parser;
 
 public class CharSeq extends Terminal {
 
@@ -28,6 +29,9 @@ public class CharSeq extends Terminal {
                     /* terminalLen = */ str.length(), Match.NO_SUBCLAUSE_MATCHES, updatedEntries);
         }
         // Don't call MemoTable.addMatch for terminals that don't match, to limit size of memo table
+        if (Parser.DEBUG) {
+            System.out.println("Failed to match at position " + memoKey.startPos + ": " + memoKey);
+        }
         return null;
     }
 
