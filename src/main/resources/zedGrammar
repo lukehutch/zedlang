@@ -24,21 +24,19 @@ WS = W*;
 
 # Post-lex grammar:
 
-Program = ^ WS (ImportStatement WS)* (Assignment WS)+;
+Program = ^ WS (ImportStatement)* (Assignment)+;
 
-ImportStatement = Import WS import:Package WS Semi;
+ImportStatement = Import WS import:Package WS Semi WS;
 
 Package = Ident (Dot Package)?;
 
-Assignment = assign:(lvalue:Ident WS Eq WS Expr WS Semi);
+Assignment = assign:(lvalue:Ident WS Eq WS Expr WS Semi WS);
 
-Accessor = accessor:(Ident WS (('[' WS lookup:Expr WS ']') WS / ('.' WS dot:Accessor WS))+ / Ident);
+Accessor = Accessor WS (('[' WS lookup:Expr WS ']') WS / ('.' WS dot:Accessor WS))+ / Ident;
 
 Expr[5] = '(' WS Expr WS ')';
 
-# Accesor must come before Ident since Ident is a prefix of an Accessor
-
-Expr[4] = Accessor / EnumConst / Num;
+Expr[4] = accessor:Accessor / EnumConst / Num;
 
 Expr[3] = arith:((op:'-' WS)+ Expr);
 

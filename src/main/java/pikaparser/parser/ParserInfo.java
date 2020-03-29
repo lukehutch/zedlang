@@ -20,6 +20,8 @@ import pikaparser.memotable.MemoTable;
 
 public class ParserInfo {
 
+    private static final char NON_ASCII_CHAR = '■';
+
     private static void getConsumedChars(Match match, BitSet consumedChars) {
         for (int i = match.memoKey.startPos, ii = match.memoKey.startPos + match.len; i < ii; i++) {
             consumedChars.set(i);
@@ -31,6 +33,19 @@ public class ParserInfo {
                 getConsumedChars(subClauseMatch, consumedChars);
             }
         }
+    }
+
+    private static void replaceNonASCII(String str, StringBuilder buf) {
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            buf.append(c < 32 || c > 126 ? NON_ASCII_CHAR : c);
+        }
+    }
+
+    private static String replaceNonASCII(String str) {
+        StringBuilder buf = new StringBuilder();
+        replaceNonASCII(str, buf);
+        return buf.toString();
     }
 
     private static int printMemoTable(List<Clause> allClauses, MemoTable memoTable, String input,
@@ -92,11 +107,7 @@ public class ParserInfo {
         for (int i = 0; i < marginWidth; i++) {
             System.out.print(' ');
         }
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-            System.out.print(c < 32 || c > 126 ? '■' : c);
-        }
-        System.out.println();
+        System.out.println(replaceNonASCII(input));
 
         for (int i = 0; i < marginWidth; i++) {
             System.out.print(' ');
@@ -228,10 +239,7 @@ public class ParserInfo {
                 }
             } else {
                 // Put input sequence on the last row (terminals do not have any edges below them)
-                for (int j = 0; j < input.length(); j++) {
-                    char c = input.charAt(j);
-                    grid[i].append(c >= 32 && c <= 126 ? c : '■');
-                }
+                replaceNonASCII(input, grid[i]);
             }
         }
 
@@ -275,14 +283,14 @@ public class ParserInfo {
                     }
                     if (endIdx - startIdx < 2) {
                         // For 0 or 1-char match, show '#'
-                        grid[gridRow].setCharAt(startIdx, '#');
+                        grid[gridRow].setCharAt(startIdx, '▯');
                     } else {
                         // Display horizontal span of match
                         for (int j = startIdx; j < endIdx; j++) {
                             if (j == startIdx) {
-                                grid[gridRow].setCharAt(j, '[');
+                                grid[gridRow].setCharAt(j, '┌');
                             } else if (j == endIdx - 1) {
-                                grid[gridRow].setCharAt(j, ']');
+                                grid[gridRow].setCharAt(j, '┐');
                             } else if (j == startIdx + 1 && !clauseLabel.isEmpty()) {
                                 // Show clause index, if it fits into span
                                 for (int k = 0; k < clauseLabel.length(); k++) {
@@ -290,7 +298,7 @@ public class ParserInfo {
                                 }
                                 --j;
                             } else {
-                                grid[gridRow].setCharAt(j, '=');
+                                grid[gridRow].setCharAt(j, '─');
                             }
                         }
                         // Add vertical lines connecting match's span to subclause matches
@@ -324,7 +332,7 @@ public class ParserInfo {
                                 int subClauseMatchGridRow = (matchesInIncreasingOrderOfDepth.size() - 1
                                         - subClauseMatchDepth) * 2;
                                 for (int k = gridRow + 1; k < subClauseMatchGridRow; k++) {
-                                    grid[k].setCharAt(subClauseMatchStartPos, '|');
+                                    grid[k].setCharAt(subClauseMatchStartPos, '│');
                                 }
                                 prevSubClauseMatchDepth = subClauseMatchDepth;
                             }
@@ -339,7 +347,60 @@ public class ParserInfo {
         }
     }
 
-    public static void printParseResult(Parser parser, String topLevelRuleName, boolean showAllMatches) {
+    private static void addRange(int startPos, int endPos, TreeMap<Integer, Integer> ranges) {
+        // Try merging new range with floor entry in TreeMap
+        var startFloorEntry = ranges.floorEntry(startPos);
+        int expandedRangeStart;
+        int expandedRangeEnd;
+        if (startFloorEntry == null || startFloorEntry.getValue() < startPos) {
+            // There is no startFloorEntry, or startFloorEntry ends before startPos -- add a new entry 
+            ranges.put(expandedRangeStart = startPos, expandedRangeEnd = endPos);
+        } else {
+            // startFloorEntry overlaps with range -- extend startFloorEntry
+            ranges.put(expandedRangeStart = startFloorEntry.getKey(),
+                    expandedRangeEnd = Math.max(startFloorEntry.getValue(), endPos));
+        }
+        // Try merging new range with the following entry in TreeMap
+        var higherEntry = ranges.higherEntry(expandedRangeStart);
+        if (higherEntry != null && higherEntry.getKey() <= expandedRangeEnd) {
+            // Expanded-range entry overlaps with the following entry -- collapse them into one
+            ranges.remove(higherEntry.getKey());
+            ranges.put(expandedRangeStart, Math.max(expandedRangeEnd, higherEntry.getValue()));
+        }
+    }
+
+    public static TreeMap<Integer, Integer> getSyntaxErrors(Parser parser, String... syntaxCoverageRuleNames) {
+        // Find the range of characters spanned by matches for each of the coverageRuleNames
+        var parsedRanges = new TreeMap<Integer, Integer>();
+        for (var coverageRuleName : syntaxCoverageRuleNames) {
+            for (var match : parser.grammar.getNonOverlappingMatches(parser.memoTable, coverageRuleName)) {
+                addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, parsedRanges);
+            }
+        }
+        // Find the inverse of the spanned ranges -- these are the syntax errors
+        var syntaxErrorRanges = new TreeMap<Integer, Integer>();
+        int prevEndPos = 0;
+        for (var ent : parsedRanges.entrySet()) {
+            var currStartPos = ent.getKey();
+            var currEndPos = ent.getValue();
+            if (currStartPos > prevEndPos) {
+                syntaxErrorRanges.put(prevEndPos, currStartPos);
+            }
+            prevEndPos = currEndPos;
+        }
+        if (!parsedRanges.isEmpty()) {
+            var lastEnt = parsedRanges.lastEntry();
+            var lastEntEndPos = lastEnt.getValue();
+            if (lastEntEndPos < parser.input.length()) {
+                // Add final syntax error range, if there is one
+                syntaxErrorRanges.put(lastEntEndPos, parser.input.length());
+            }
+        }
+        return syntaxErrorRanges;
+    }
+
+    public static void printParseResult(Parser parser, String topLevelRuleName, String[] syntaxCoverageRuleNames,
+            boolean showAllMatches) {
         var topLevelRule = parser.grammar.getRule(topLevelRuleName);
         if (topLevelRule == null) {
             throw new IllegalArgumentException("No clause named \"" + topLevelRuleName + "\"");
@@ -413,7 +474,7 @@ public class ParserInfo {
                     var overlapsPrevMatch = match.memoKey.startPos < prevEndPos;
                     if (!overlapsPrevMatch || showAllMatches) {
                         var indent = overlapsPrevMatch ? "    " : "";
-                        System.out.println("\n" + indent + "#");
+                        System.out.println("\n" + indent + "▯");
                         match.printTreeView(parser.input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel,
                                 i == matches.size() - 1);
                     }
@@ -442,6 +503,17 @@ public class ParserInfo {
             }
         } else {
             System.out.println("\nRule \"" + topLevelRuleName + "\" did not match anything");
+        }
+
+        var syntaxErrors = getSyntaxErrors(parser, syntaxCoverageRuleNames);
+        if (!syntaxErrors.isEmpty()) {
+            System.out.println("\nSYNTAX ERRORS:\n");
+            for (var ent : syntaxErrors.entrySet()) {
+                var startPos = ent.getKey();
+                var endPos = ent.getValue();
+                // TODO: show line numbers
+                System.out.println(startPos + " : " + replaceNonASCII(parser.input.substring(startPos, endPos)));
+            }
         }
 
         System.out.println("\nNum match objects created: " + parser.memoTable.numMatchObjectsCreated);

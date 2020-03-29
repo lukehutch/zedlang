@@ -116,15 +116,15 @@ public class Match implements Comparable<Match> {
             inp += "...";
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
-        System.out.println(indentStr + "|   ");
-        System.out.println(indentStr + "+-- " + (astNodeLabel == null ? "" : astNodeLabel + ":(")
+        System.out.println(indentStr + "│   ");
+        System.out.println(indentStr + (isLastChild ? "└─ " : "├─ ") + (astNodeLabel == null ? "" : astNodeLabel + ":(")
                 + memoKey.toStringWithRuleNames() + (astNodeLabel == null ? "" : ")") + "+" + len + " \"" + inp
                 + "\"");
         if (subClauseMatches != null) {
             for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatches.length; subClauseMatchIdx++) {
                 var subClauseMatch = subClauseMatches[subClauseMatchIdx];
                 var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
-                subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "    " : "|   "),
+                subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "   " : "│  "),
                         subClauseASTNodeLabel, subClauseMatchIdx == subClauseMatches.length - 1);
             }
         }

@@ -9,7 +9,7 @@ public class TestMetaGrammar {
 
     public static void main(String[] args) throws IOException {
         System.out.println("Parsing Zed grammar");
-        
+
         String grammarStr;
         try (var stream = TestMetaGrammar.class.getClassLoader().getResource("zedGrammar").openStream()) {
             grammarStr = new String(stream.readAllBytes());
@@ -18,15 +18,16 @@ public class TestMetaGrammar {
         Parser metaParser = new Parser(MetaGrammar.grammar);
         metaParser.parse(grammarStr);
 
-        // ParserInfo.printParseResult(metaParser, "GRAMMAR", /* showAllMatches = */ false);
-        
+        // ParserInfo.printParseResult(metaParser, "GRAMMAR", new String[] { "GRAMMAR", "RULE", "CLAUSE" },
+        //         /* showAllMatches = */ false);
+
         Grammar zedGrammar = MetaGrammar.parseGrammar(metaParser);
 
         //        System.out.println("\nParsed grammar:");
         //        for (var clause : zedGrammar.allClauses) {
         //            System.out.println("    " + clause.toStringWithRuleNames());
         //        }
-        
+
         System.out.println("Parsing Zed program");
 
         String srcStr;
@@ -37,7 +38,8 @@ public class TestMetaGrammar {
         Parser srcParser = new Parser(zedGrammar);
         srcParser.parse(srcStr);
 
-        ParserInfo.printParseResult(srcParser, "Program", /* showAllMatches = */ false);
+        ParserInfo.printParseResult(srcParser, "Program",
+                new String[] { "Program", "Import", "Assignment", "Expr" }, /* showAllMatches = */ false);
     }
 
 }

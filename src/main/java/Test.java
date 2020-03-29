@@ -41,7 +41,7 @@ public class Test {
             //            )));
             //            parser.parse(grammarStr);
 
-            ParserInfo.printParseResult(parser, "Expr", false);
+            ParserInfo.printParseResult(parser, "Expr", new String[] {"Expr"}, false);
         }
     }
 

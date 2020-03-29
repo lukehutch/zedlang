@@ -97,13 +97,14 @@ public class ASTNode {
             inp += "...";
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
-        buf.append(indentStr + "|   \n");
-        buf.append(indentStr + "+-- " + label + " " + startPos + "+" + len + " : \"" + inp + "\"\n");
+        buf.append(indentStr + "│  \n");
+        buf.append(indentStr + (isLastChild ? "└─ " : "├─ ") + label + " " + startPos + "+" + len + " : \"" + inp
+                + "\"\n");
         if (children != null) {
             for (int i = 0; i < children.size(); i++) {
                 var subClauseMatch = children.get(i);
-                subClauseMatch.renderTreeView(indentStr + (isLastChild ? "    " : "|   "),
-                        i == children.size() - 1, buf);
+                subClauseMatch.renderTreeView(indentStr + (isLastChild ? "   " : "│  "), i == children.size() - 1,
+                        buf);
             }
         }
     }
