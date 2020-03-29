@@ -2,17 +2,19 @@
 # Lex rule:
 
 # Import has to come before Ident because Ident matches "import"
-Lex = Import / Ident / EnumConst / Num / LParen / RParen / Eq / Semi / Dot / ArithOp / W;
+Lex = Import / Ident / EnumConst / Num / LParen / RParen / LBracket / RBracket / Eq / Semi / Dot / ArithOp / W;
 
 Import = "import";
-Ident = [a-zA-Z_][a-zA-Z0-9_]*;
-EnumConst = '#' Ident;
-Num = Digit+ / Digit* Dot Digit+ [fF]?;
+Ident = ident:([a-zA-Z_][a-zA-Z0-9_]*);
+EnumConst = enumConst:('#' Ident);
+Num = num:(Digit+ / Digit* Dot Digit+ [fF]?);
 LParen = '('; 
 RParen = ')'; 
 Eq = '=';
 Semi = ';';
 Dot = '.';
+LBracket = '[';
+RBracket = ')';
 ArithOp = '+' / '-' / '*' / '/';
 Digit = [0-9];
 
@@ -28,13 +30,17 @@ ImportStatement = Import WS import:Package WS Semi;
 
 Package = Ident (Dot Package)?;
 
-Assignment = assign:(lvalue:Ident WS Eq WS expr:Expr WS Semi);
+Assignment = assign:(lvalue:Ident WS Eq WS Expr WS Semi);
+
+Accessor = accessor:(Ident WS (('[' WS lookup:Expr WS ']') WS / ('.' WS dot:Accessor WS))+ / Ident);
 
 Expr[5] = '(' WS Expr WS ')';
 
-Expr[4] = ident:Ident / enumConst:EnumConst / num:Num;
+# Accesor must come before Ident since Ident is a prefix of an Accessor
 
-Expr[3] = '-'+ Expr;
+Expr[4] = Accessor / EnumConst / Num;
+
+Expr[3] = arith:((op:'-' WS)+ Expr);
 
 Expr[2] = arith:(Expr WS (op:('*' / '/') WS Expr WS)+);
 

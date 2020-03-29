@@ -2,5 +2,5 @@
 import zed.math.Math;
 import zed.io;
 
-x = 1 + 2 * 3 * (4 + 5);
+x = 2*math.table[q[12] + 5][6].x;
 y = 3;

@@ -46,11 +46,11 @@ public class Grammar {
             // Rewrite rules that have multiple precedence levels
             var rulesWithName = ent.getValue();
             if (rulesWithName.size() > 1) {
-                var ruleName = ent.getKey();
                 // Add rules for higher precedence selectors, and rewrite rule self-references to select
                 // higher precedence. e.g. given max precedence of 5:
-                // R[3] <- '+' R is replaced with R[3] <- '+' R[4-5]
-                // R[5] <- '(' R ')' is replaced with R[5] <- '(' R[0-5] ')'
+                // (R at prec 3 = '+' R) is replaced with (R[3] = '+' R[4-5])
+                // (R at prec 5 = '(' R ')') is replaced with (R[5] = '(' R[0-5] ')')
+                var ruleName = ent.getKey();
                 handlePrecedence(ruleName, rulesWithName, allRules);
             }
         }
