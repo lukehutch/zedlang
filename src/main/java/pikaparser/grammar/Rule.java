@@ -188,29 +188,35 @@ public class Rule {
         }
     }
 
-    /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lex). */
-    private static void checkNoCycles(Clause clause, Set<Clause> visited) {
-        if (visited.add(clause)) {
-            if (clause instanceof RuleRef) {
-                throw new IllegalArgumentException(
-                        "There should not be any " + RuleRef.class.getSimpleName() + " nodes left in grammar");
-            }
-            for (var subClause : clause.subClauses) {
-                checkNoCycles(subClause, visited);
-            }
-            // Clause graph is a DAG, not a tree, after interning subclauses and replacing RuleRef instances,
-            // so need to remove clause from visited again on exit to properly detect cycles
-            visited.remove(clause);
-        } else {
-            throw new IllegalArgumentException("Lex rule's clause tree contains a cycle at " + clause);
+    /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lexing). */
+    private static void checkNoCycles(Clause clause, Set<Clause> discovered, Set<Clause> finished) {
+        if (clause instanceof RuleRef) {
+            throw new IllegalArgumentException(
+                    "There should not be any " + RuleRef.class.getSimpleName() + " nodes left in grammar");
         }
+        discovered.add(clause);
+        for (var subClause : clause.subClauses) {
+            if (discovered.contains(subClause)) {
+                throw new IllegalArgumentException("Lex rule's clause tree contains a cycle at " + subClause);
+            }
+            if (!finished.contains(subClause)) {
+                checkNoCycles(subClause, discovered, finished);
+            }
+        }
+        discovered.remove(clause);
+        finished.add(clause);
     }
 
     /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lex). */
     public void checkNoCycles() {
-        checkNoCycles(clause, new HashSet<Clause>());
+        var discovered = new HashSet<Clause>();
+        var finished = new HashSet<Clause>();
+        for (var subClause : clause.subClauses) {
+            if (!discovered.contains(subClause) && !finished.contains(subClause)) {
+                checkNoCycles(subClause, discovered, finished);
+            }
+        }
     }
-
 
     /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
     private static void findReachableClauses(Clause clause, Set<Clause> visited, List<Clause> revTopoOrderOut) {
