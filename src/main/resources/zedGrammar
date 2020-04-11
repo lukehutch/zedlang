@@ -2,21 +2,17 @@
 # Lex rule:
 
 # Import has to come before Ident because Ident matches "import"
-Lex = Import / Ident / EnumConst / Num / LParen / RParen / LBracket / RBracket / Eq / Semi / Dot / ArithOp / W;
+Lex = Keyword / Ident / EnumConst / Num / Parens / ArithOp / Comparison / SyntaxChar / WS;
 
-Import = "import";
+Keyword = "import" / "if" / "then";
 Ident = ident:([a-zA-Z_][a-zA-Z0-9_]*);
 EnumConst = enumConst:('#' Ident);
-Num = num:(Digit+ / Digit* Dot Digit+ [fF]?);
-LParen = '('; 
-RParen = ')'; 
-Eq = '=';
-Semi = ';';
-Dot = '.';
-LBracket = '[';
-RBracket = ')';
-ArithOp = '+' / '-' / '*' / '/';
+Num = num:(Digit+ / Digit* '.' Digit+ [fF]?);
 Digit = [0-9];
+Parens = '(' / ')' / '[' / ']' / '{' / '}';
+ArithOp = '+' / '-' / '*' / '/';
+Comparison = "==" / "!=" / '>' / ">=" / '<' / "<=";
+SyntaxChar = '=' / ';' / '.';
 
 # Don't match zero or more whitespace chars in Lex rule, so that we can see where lex fails 
 W = (' ' / '\t' / '\n' / '\r' / '\f');
@@ -26,17 +22,21 @@ WS = W*;
 
 Program = ^ WS (ImportStatement)* (Assignment)+;
 
-ImportStatement = Import WS import:Package WS Semi WS;
+ImportStatement = "import" WS import:Package WS ';' WS;
 
-Package = Ident (Dot Package)?;
+Package = Ident ('.' Package)?;
 
-Assignment = assign:(lvalue:Ident WS Eq WS Expr WS Semi WS);
+Assignment = assign:(lvalue:Ident WS '=' WS Expr WS ';' WS);
 
 Accessor = Accessor WS (('[' WS lookup:Expr WS ']') WS / ('.' WS dot:Accessor WS))+ / Ident;
 
-Expr[5] = '(' WS Expr WS ')';
+Block = '{' WS Assignment* WS '}';
 
-Expr[4] = accessor:Accessor / EnumConst / Num;
+Expr[6] = '(' WS Expr WS ')';
+
+Expr[5] = accessor:Accessor / EnumConst / Num;
+
+Expr[4] = if:("if" WS Expr WS then:Block WS ("else" WS else:Block)?);
 
 Expr[3] = arith:((op:'-' WS)+ Expr);
 
@@ -44,3 +44,4 @@ Expr[2] = arith:(Expr WS (op:('*' / '/') WS Expr WS)+);
 
 Expr[1] = arith:(Expr WS (op:('+' / '-') WS Expr WS)+);
 
+Expr[0] = arith:(Expr WS (op:Comparison WS Expr WS)+);

@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import pikaparser.clause.Clause;
+import pikaparser.grammar.Rule.Associativity;
 import pikaparser.parser.ASTNode;
 import pikaparser.parser.Parser;
 
@@ -38,6 +39,8 @@ public class MetaGrammar {
 
     private static final String RULE_AST = "RuleAST";
     private static final String PREC_AST = "PrecAST";
+    private static final String R_ASSOC_AST = "RAssocAST";
+    private static final String L_ASSOC_AST = "LAssocAST";
     private static final String IDENT_AST = "IdentAST";
     private static final String LABEL_AST = "LabelAST";
     private static final String LABEL_NAME_AST = "LabelNameAST";
@@ -70,9 +73,9 @@ public class MetaGrammar {
 
             // Define precedence order for clause sequences
 
-            rule(CLAUSE, 8, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
+            rule(CLAUSE, 8, /* associativity = */ null, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
 
-            rule(CLAUSE, 7, //
+            rule(CLAUSE, 7, /* associativity = */ null, //
                     first( //
                             r(IDENT), //
                             r(QUOTED_STRING), //
@@ -80,31 +83,31 @@ public class MetaGrammar {
                             r(NOTHING), //
                             r(START))), //
 
-            rule(CLAUSE, 6, //
+            rule(CLAUSE, 6, /* associativity = */ null, //
                     first( //
                             seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c("+")),
                             seq(ast(ZERO_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')))), //
 
-            rule(CLAUSE, 5, //
+            rule(CLAUSE, 5, /* associativity = */ null, //
                     first( //
                             seq(c('&'), ast(FOLLOWED_BY_AST, r(CLAUSE))), //
                             seq(c('!'), ast(NOT_FOLLOWED_BY_AST, r(CLAUSE))))), //
 
-            rule(CLAUSE, 4, //
+            rule(CLAUSE, 4, /* associativity = */ null, //
                     seq(ast(OPTIONAL_AST, r(CLAUSE)), r(WSC), c('?'))), //
 
-            rule(CLAUSE, 3,
+            rule(CLAUSE, 3, /* associativity = */ null, //
                     ast(LABEL_AST,
                             seq(ast(LABEL_NAME_AST, r(IDENT)), r(WSC), c(':'), r(WSC),
                                     ast(LABEL_CLAUSE_AST, r(CLAUSE)), r(WSC)))), //
 
-            rule(CLAUSE, 2, //
+            rule(CLAUSE, 2, /* associativity = */ null, //
                     ast(SEQ_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(r(CLAUSE), r(WSC)))))),
 
-            rule(CLAUSE, 1, //
+            rule(CLAUSE, 1, /* associativity = */ null, //
                     ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('/'), r(WSC), r(CLAUSE), r(WSC)))))),
 
-            rule(CLAUSE, 0, //
+            rule(CLAUSE, 0, /* associativity = */ null, //
                     ast(LONGEST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('|'), r(WSC), r(CLAUSE), r(WSC)))))),
 
             // Lex rule for preprocessing
@@ -140,7 +143,7 @@ public class MetaGrammar {
                     seq(c('#'), zeroOrMore(c('\n', /* invert = */ true)))),
 
             rule(IDENT, //
-                    ast(IDENT_AST, oneOrMore(r(NAME_CHAR)))), //
+                    ast(IDENT_AST, seq(r(NAME_CHAR), zeroOrMore(first(r(NAME_CHAR), c('0', '9')))))), //
 
             rule(NUM, //
                     oneOrMore(c('0', '9'))), //
@@ -149,7 +152,13 @@ public class MetaGrammar {
                     c(c('a', 'z'), c('A', 'Z'), c("_-"))),
 
             rule(PREC, //
-                    seq(c('['), r(WSC), ast(PREC_AST, r(NUM)), r(WSC), c(']'), r(WSC))), //
+                    seq(c('['), r(WSC), //
+                            ast(PREC_AST, r(NUM)), r(WSC), //
+                            optional(seq(c(','), r(WSC), //
+                                    first(ast(R_ASSOC_AST, first(c('r'), c('R'))),
+                                            ast(L_ASSOC_AST, first(c('l'), c('L')))),
+                                    r(WSC))), //
+                            c(']'), r(WSC))), //
 
             rule(CHAR_SET, //
                     first( //
@@ -357,21 +366,24 @@ public class MetaGrammar {
 
     private static Rule parseRule(ASTNode ruleNode, String input) {
         String ruleName = ruleNode.getFirstChild().getText();
-        var hasPrecedence = ruleNode.getSecondChild().label.equals(PREC_AST);
-        if (ruleNode.children.size() > (hasPrecedence ? 3 : 2)) {
-            throw new IllegalArgumentException(
-                    "Expected " + (hasPrecedence ? 3 : 2) + " children; got " + ruleNode.children.size());
-        }
+        var hasPrecedence = ruleNode.children.size() > 2;
+        var associativity = ruleNode.children.size() < 4 ? null
+                : ((ruleNode.getThirdChild().label.equals(L_ASSOC_AST) ? Associativity.LEFT
+                        : ruleNode.getThirdChild().label.equals(R_ASSOC_AST) ? Associativity.RIGHT : null));
         int precedence = hasPrecedence ? Integer.parseInt(ruleNode.getSecondChild().getText()) : -1;
-        var astNode = hasPrecedence ? ruleNode.getThirdChild() : ruleNode.getSecondChild();
+        if (hasPrecedence && precedence < 0) {
+            throw new IllegalArgumentException("Precedence needs to be zero or positive (rule " + ruleName
+                    + " has precence level " + precedence + ")");
+        }
+        var astNode = ruleNode.getChild(ruleNode.children.size() - 1);
         Clause clause = parseASTNode(astNode);
-        return rule(ruleName, precedence, clause);
+        return rule(ruleName, precedence, associativity, clause);
     }
 
     public static Grammar parseGrammar(Parser parser) {
         var topLevelMatches = parser.grammar.getNonOverlappingMatches(parser.memoTable, GRAMMAR);
         if (topLevelMatches.isEmpty()) {
-            throw new IllegalArgumentException("Toplevel rule did not match");
+            throw new IllegalArgumentException("Toplevel rule \"" + GRAMMAR + "\" did not match");
         } else if (topLevelMatches.size() > 1) {
             throw new IllegalArgumentException("Multiple toplevel matches");
         }

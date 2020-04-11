@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import pikaparser.grammar.Rule;
+import pikaparser.grammar.Rule.Associativity;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
@@ -123,11 +124,11 @@ public abstract class Clause {
 
     public static Rule rule(String ruleName, Clause clause) {
         // Use -1 as precedence if rule group has only one precedence
-        return rule(ruleName, -1, clause);
+        return rule(ruleName, -1, /* associativity = */ null, clause);
     }
 
-    public static Rule rule(String ruleName, int precedence, Clause clause) {
-        var rule = new Rule(ruleName, precedence, clause);
+    public static Rule rule(String ruleName, int precedence, Associativity associativity, Clause clause) {
+        var rule = new Rule(ruleName, precedence, associativity, clause);
         return rule;
     }
 

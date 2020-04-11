@@ -11,7 +11,10 @@ public class TestMetaGrammar {
         System.out.println("Parsing Zed grammar");
 
         String grammarStr;
-        try (var stream = TestMetaGrammar.class.getClassLoader().getResource("zedGrammar").openStream()) {
+        try (var stream = TestMetaGrammar.class.getClassLoader() //
+                // .getResource("zedGrammar") //
+                .getResource("grammarSimple") //
+                .openStream()) {
             grammarStr = new String(stream.readAllBytes());
         }
 
@@ -20,6 +23,8 @@ public class TestMetaGrammar {
 
         // ParserInfo.printParseResult(metaParser, "GRAMMAR", new String[] { "GRAMMAR", "RULE", "CLAUSE" },
         //         /* showAllMatches = */ false);
+
+        ParserInfo.printSyntaxErrors(metaParser, new String[] { "GRAMMAR", "RULE", "CLAUSE" });
 
         Grammar zedGrammar = MetaGrammar.parseGrammar(metaParser);
 
@@ -31,7 +36,10 @@ public class TestMetaGrammar {
         System.out.println("Parsing Zed program");
 
         String srcStr;
-        try (var stream = TestMetaGrammar.class.getClassLoader().getResource("test.zed").openStream()) {
+        try (var stream = TestMetaGrammar.class.getClassLoader() //
+                // .getResource("test.zed") //
+                .getResource("test.simple") //
+                .openStream()) {
             srcStr = new String(stream.readAllBytes());
         }
 
@@ -39,7 +47,7 @@ public class TestMetaGrammar {
         srcParser.parse(srcStr);
 
         ParserInfo.printParseResult(srcParser, "Program",
-                new String[] { "Program", "Import", "Assignment", "Expr" }, /* showAllMatches = */ false);
+                new String[] { "Program", "ImportStatement", "Assignment", "Expr" }, /* showAllMatches = */ false);
     }
 
 }

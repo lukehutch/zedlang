@@ -4,3 +4,7 @@ import zed.io;
 
 x = 2*math.blah.table[q[12] + 5][#test].x;
 y = 3;
+
+z = test ? 1 : 2;
+z = if test { w = 1; } else { w = 2; };
+ 

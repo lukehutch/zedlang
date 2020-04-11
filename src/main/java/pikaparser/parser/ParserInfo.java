@@ -399,6 +399,19 @@ public class ParserInfo {
         return syntaxErrorRanges;
     }
 
+    public static void printSyntaxErrors(Parser parser, String[] syntaxCoverageRuleNames) {
+        var syntaxErrors = getSyntaxErrors(parser, syntaxCoverageRuleNames);
+        if (!syntaxErrors.isEmpty()) {
+            System.out.println("\nSYNTAX ERRORS:\n");
+            for (var ent : syntaxErrors.entrySet()) {
+                var startPos = ent.getKey();
+                var endPos = ent.getValue();
+                // TODO: show line numbers
+                System.out.println(startPos + " : " + replaceNonASCII(parser.input.substring(startPos, endPos)));
+            }
+        }
+    }
+
     public static void printParseResult(Parser parser, String topLevelRuleName, String[] syntaxCoverageRuleNames,
             boolean showAllMatches) {
         var topLevelRule = parser.grammar.getRule(topLevelRuleName);
@@ -474,9 +487,9 @@ public class ParserInfo {
                     var overlapsPrevMatch = match.memoKey.startPos < prevEndPos;
                     if (!overlapsPrevMatch || showAllMatches) {
                         var indent = overlapsPrevMatch ? "    " : "";
-                        System.out.println("\n" + indent + "▯");
+                        System.out.println();
                         match.printTreeView(parser.input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel,
-                                i == matches.size() - 1);
+                                true);
                     }
                     int newEndPos = match.memoKey.startPos + match.len;
                     if (newEndPos > prevEndPos) {
@@ -505,16 +518,7 @@ public class ParserInfo {
             System.out.println("\nRule \"" + topLevelRuleName + "\" did not match anything");
         }
 
-        var syntaxErrors = getSyntaxErrors(parser, syntaxCoverageRuleNames);
-        if (!syntaxErrors.isEmpty()) {
-            System.out.println("\nSYNTAX ERRORS:\n");
-            for (var ent : syntaxErrors.entrySet()) {
-                var startPos = ent.getKey();
-                var endPos = ent.getValue();
-                // TODO: show line numbers
-                System.out.println(startPos + " : " + replaceNonASCII(parser.input.substring(startPos, endPos)));
-            }
-        }
+        printSyntaxErrors(parser, syntaxCoverageRuleNames);
 
         System.out.println("\nNum match objects created: " + parser.memoTable.numMatchObjectsCreated);
         System.out.println("Num match objects memoized:  " + parser.memoTable.numMatchObjectsMemoized);

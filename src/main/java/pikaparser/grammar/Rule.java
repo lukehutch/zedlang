@@ -12,12 +12,19 @@ import pikaparser.clause.RuleRef;
 public class Rule {
     public String ruleName;
     public final int precedence;
+    public final Associativity associativity;
     public Clause clause;
     public String astNodeLabel;
 
-    public Rule(String ruleName, int precedence, Clause clause) {
+    /** Associativity (or null implies no associativity). */
+    public static enum Associativity {
+        LEFT, RIGHT;
+    }
+
+    public Rule(String ruleName, int precedence, Associativity associativity, Clause clause) {
         this.ruleName = ruleName;
         this.precedence = precedence;
+        this.associativity = associativity;
 
         // Lift AST node label from clause into astNodeLabel field in rule
         if (clause instanceof ASTNodeLabel) {
@@ -37,7 +44,7 @@ public class Rule {
     public Rule(String ruleName, Clause clause) {
         // Use precedence of -1 for rules that only have one precedence
         // (this causes the precedence number not to be shown in the output of toStringWithRuleNames())
-        this(ruleName, -1, clause);
+        this(ruleName, -1, /* associativity = */ null, clause);
     }
 
     /**
