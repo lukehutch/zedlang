@@ -20,7 +20,7 @@ public class Match implements Comparable<Match> {
      * The subclause index of the first matching subclause (will be 0 unless {@link #clause} is a {@link First}, and
      * the matching clause was not the first subclause).
      */
-    public int firstMatchingSubClauseIdx;
+    private int firstMatchingSubClauseIdx;
 
     /** There are no subclause matches for terminals. */
     public static final Match[] NO_SUBCLAUSE_MATCHES = new Match[0];

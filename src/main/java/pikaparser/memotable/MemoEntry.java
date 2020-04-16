@@ -1,8 +1,6 @@
 package pikaparser.memotable;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -24,9 +22,6 @@ public class MemoEntry {
      * better match.
      */
     public PriorityBlockingQueue<Match> newMatches = new PriorityBlockingQueue<>();
-
-    /** The subclause matches from the previous iteration. */
-    public List<Match> subClauseMatches = new ArrayList<>();
 
     public Set<MemoKey> backRefs = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
 

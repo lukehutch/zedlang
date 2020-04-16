@@ -17,8 +17,15 @@ public class NotFollowedBy extends Clause {
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
             Set<MemoEntry> updatedEntries) {
-        var subClauseMemoKey = new MemoKey(subClauses[0], memoKey.startPos);
-        var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey, updatedEntries);
+        var subClause = subClauses[0];
+        var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
+        var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN || subClause instanceof Terminal
+                // Match lex rules and terminals top-down, which avoids creating memo entries for terminals
+                // that don't match.
+                ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, updatedEntries)
+                // Otherwise matching bottom-up -- just look in the memo table for subclause matches
+                : memoTable.lookUpMemo(subClauseMemoKey, input, memoKey,
+                        updatedEntries);
         // Replace any invalid subclause match with a zero-char-consuming match
         if (subClauseMatch == null) {
             return memoTable.addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* terminalLen = */ 0,

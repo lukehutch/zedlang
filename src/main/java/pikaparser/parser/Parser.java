@@ -19,9 +19,9 @@ public class Parser {
 
     public final MemoTable memoTable = new MemoTable();
 
-    private static final boolean PARALLELIZE = true;
+    private static final boolean PARALLELIZE = false;
 
-    public static final boolean DEBUG = false;
+    public static boolean DEBUG = false;
 
     public Parser(Grammar grammar) {
         this.grammar = grammar;
@@ -94,6 +94,9 @@ public class Parser {
                         }
                     });
         }
+        
+        var clauseOrder = ParserInfo.getClauseOrder(this);
+
 
         // Main parsing loop
         // (need to check if (!updatedEntries.isEmpty()) in the while condition, even though updatedEntries.clear()
@@ -113,6 +116,9 @@ public class Parser {
             (PARALLELIZE ? updatedEntries.parallelStream() : updatedEntries.stream()).forEach(memoEntry -> {
                 memoEntry.updateBestMatch(input, activeSet, memoTable.numMatchObjectsMemoized);
             });
+
+            if (DEBUG)
+            ParserInfo.printMemoTable(clauseOrder, memoTable, input, null);
 
             // Clear memoEntriesWithNewMatches for the next round
             updatedEntries.clear();

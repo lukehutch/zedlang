@@ -58,8 +58,12 @@ public class Seq extends Clause {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
-            var subClauseMatch = memoTable.lookUpMemo(matchDirection, subClauseMemoKey, input, memoKey,
-                    updatedEntries);
+            var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN || subClause instanceof Terminal
+                    // Match lex rules and terminals top-down, which avoids creating memo entries for terminals
+                    // that don't match.
+                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, updatedEntries)
+                    // Otherwise matching bottom-up -- just look in the memo table for subclause matches
+                    : memoTable.lookUpMemo(subClauseMemoKey, input, memoKey, updatedEntries);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 if (Parser.DEBUG) {

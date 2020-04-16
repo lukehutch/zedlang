@@ -1,0 +1,6 @@
+Program = Sum; 
+Num = [0-9]+;
+Prod = (Num MulDiv Num) / Num;
+Sum = Prod AddSub Prod;
+MulDiv = '*' / '/';
+AddSub = '+' / '-';

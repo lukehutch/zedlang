@@ -48,8 +48,7 @@ public class ParserInfo {
         return buf.toString();
     }
 
-    private static int printMemoTable(List<Clause> allClauses, MemoTable memoTable, String input,
-            BitSet consumedChars) {
+    static int printMemoTable(List<Clause> allClauses, MemoTable memoTable, String input, BitSet consumedChars) {
         StringBuilder[] buf = new StringBuilder[allClauses.size()];
         int marginWidth = 0;
         for (int i = 0; i < allClauses.size(); i++) {
@@ -109,13 +108,15 @@ public class ParserInfo {
         }
         System.out.println(replaceNonASCII(input));
 
-        for (int i = 0; i < marginWidth; i++) {
-            System.out.print(' ');
+        if (consumedChars != null) {
+            for (int i = 0; i < marginWidth; i++) {
+                System.out.print(' ');
+            }
+            for (int i = 0; i < input.length(); i++) {
+                System.out.print(consumedChars.get(i) ? " " : "~");
+            }
+            System.out.println();
         }
-        for (int i = 0; i < input.length(); i++) {
-            System.out.print(consumedChars.get(i) ? " " : "~");
-        }
-        System.out.println();
 
         //        // Highlight any syntax errors
         //        if (syntaxErrors != null && syntaxErrors.size() > 0) {
@@ -285,21 +286,9 @@ public class ParserInfo {
                         // For 0 or 1-char match, show '#'
                         grid[gridRow].setCharAt(startIdx, '▯');
                     } else {
-                        // Display horizontal span of match
+                        // Draw a horizontal line at the top of the span
                         for (int j = startIdx; j < endIdx; j++) {
-                            if (j == startIdx) {
-                                grid[gridRow].setCharAt(j, '┌');
-                            } else if (j == endIdx - 1) {
-                                grid[gridRow].setCharAt(j, '┐');
-                            } else if (j == startIdx + 1 && !clauseLabel.isEmpty()) {
-                                // Show clause index, if it fits into span
-                                for (int k = 0; k < clauseLabel.length(); k++) {
-                                    grid[gridRow].setCharAt(j++, clauseLabel.charAt(k));
-                                }
-                                --j;
-                            } else {
-                                grid[gridRow].setCharAt(j, '─');
-                            }
+                            grid[gridRow].setCharAt(j, '─');
                         }
                         // Add vertical lines connecting match's span to subclause matches
                         if (match.subClauseMatches.length > 0) {
@@ -331,10 +320,20 @@ public class ParserInfo {
                                 }
                                 int subClauseMatchGridRow = (matchesInIncreasingOrderOfDepth.size() - 1
                                         - subClauseMatchDepth) * 2;
+                                grid[gridRow].setCharAt(subClauseMatchStartPos,
+                                        subClauseMatchStartPos == startIdx ? '┌'
+                                                : subClauseMatchStartPos < endIdx - 1 ? '┬' : '┐');
                                 for (int k = gridRow + 1; k < subClauseMatchGridRow; k++) {
                                     grid[k].setCharAt(subClauseMatchStartPos, '│');
                                 }
                                 prevSubClauseMatchDepth = subClauseMatchDepth;
+                            }
+                        }
+                        // Write over the match span with the label
+                        if (!clauseLabel.isEmpty()) {
+                            for (int j = startIdx + 1, jj = Math.min(startIdx + 1 + clauseLabel.length(),
+                                    endIdx - 1); j < jj; j++) {
+                                grid[gridRow].setCharAt(j, clauseLabel.charAt(j - startIdx - 1));
                             }
                         }
                     }
@@ -412,6 +411,26 @@ public class ParserInfo {
         }
     }
 
+    public static List<Clause> getClauseOrder(Parser parser) {
+        var clauseOrder = new ArrayList<Clause>();
+        List<Clause> allClauses = parser.grammar.allClauses;
+        for (int i = 0; i < allClauses.size(); i++) {
+            Clause clause = allClauses.get(allClauses.size() - 1 - i);
+            if (!(clause instanceof Terminal)) {
+                // First show nonterminals
+                clauseOrder.add(clause);
+            }
+        }
+        for (int i = 0; i < allClauses.size(); i++) {
+            Clause clause = allClauses.get(i);
+            if (clause instanceof Terminal && !(clause instanceof Nothing)) {
+                // Then show terminals
+                clauseOrder.add(clause);
+            }
+        }
+        return clauseOrder;
+    }
+
     public static void printParseResult(Parser parser, String topLevelRuleName, String[] syntaxCoverageRuleNames,
             boolean showAllMatches) {
         var topLevelRule = parser.grammar.getRule(topLevelRuleName);
@@ -432,22 +451,7 @@ public class ParserInfo {
         }
 
         // Find reachable clauses, by reversing topological order of clauses, and putting terminals last 
-        var clauseOrder = new ArrayList<Clause>();
-        List<Clause> allClauses = parser.grammar.allClauses;
-        for (int i = 0; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(allClauses.size() - 1 - i);
-            if (!(clause instanceof Terminal)) {
-                // First show nonterminals
-                clauseOrder.add(clause);
-            }
-        }
-        for (int i = 0; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(i);
-            if (clause instanceof Terminal && !(clause instanceof Nothing)) {
-                // Then show terminals
-                clauseOrder.add(clause);
-            }
-        }
+        var clauseOrder = getClauseOrder(parser);
 
         // Print memo table
         System.out.println();

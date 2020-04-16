@@ -13,7 +13,7 @@ public class TestMetaGrammar {
         String grammarStr;
         try (var stream = TestMetaGrammar.class.getClassLoader() //
                 // .getResource("zedGrammar") //
-                .getResource("grammarSimple") //
+                .getResource("grammarSimple2") //
                 .openStream()) {
             grammarStr = new String(stream.readAllBytes());
         }
@@ -21,8 +21,8 @@ public class TestMetaGrammar {
         Parser metaParser = new Parser(MetaGrammar.grammar);
         metaParser.parse(grammarStr);
 
-        // ParserInfo.printParseResult(metaParser, "GRAMMAR", new String[] { "GRAMMAR", "RULE", "CLAUSE" },
-        //         /* showAllMatches = */ false);
+        ParserInfo.printParseResult(metaParser, "GRAMMAR", new String[] { "GRAMMAR", "RULE", "CLAUSE" },
+                /* showAllMatches = */ false);
 
         ParserInfo.printSyntaxErrors(metaParser, new String[] { "GRAMMAR", "RULE", "CLAUSE" });
 
@@ -35,10 +35,12 @@ public class TestMetaGrammar {
 
         System.out.println("Parsing Zed program");
 
+        Parser.DEBUG = true;
+
         String srcStr;
         try (var stream = TestMetaGrammar.class.getClassLoader() //
                 // .getResource("test.zed") //
-                .getResource("test.simple") //
+                .getResource("test.simple2") //
                 .openStream()) {
             srcStr = new String(stream.readAllBytes());
         }

@@ -10,8 +10,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
-import pikaparser.clause.Clause.MatchDirection;
-import pikaparser.clause.Terminal;
 
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
@@ -55,16 +53,7 @@ public class MemoTable {
      * If matchDirection == TOP_DOWN, recurse down through child clauses (standard recursive descent parsing,
      * unmemoized).
      */
-    public Match lookUpMemo(MatchDirection matchDirection, MemoKey memoKey, String input, MemoKey parentMemoKey,
-            Set<MemoEntry> updatedEntries) {
-        boolean isTerminal = memoKey.clause instanceof Terminal;
-        if (isTerminal || matchDirection == MatchDirection.TOP_DOWN) {
-            // Match terminals and lex rules top-down. Do this before looking in memo table, so that memo entries
-            // don't have to be added for terminals that don't match. Calling match() will Still create MemoEntries
-            // for terminals that do match, so that their parent clauses can be scheduled for update.
-            return memoKey.clause.match(MatchDirection.TOP_DOWN, this, memoKey, input, updatedEntries);
-        }
-
+    public Match lookUpMemo(MemoKey memoKey, String input, MemoKey parentMemoKey, Set<MemoEntry> updatedEntries) {
         // Create a new memo entry for non-terminals
         // (Have to add memo entry if terminal does match, since a new match needs to trigger parent clauses.)
         // Get MemoEntry for the MemoKey
